@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(..., min_length=32)
     jwt_algorithm: str = Field(...)
     access_token_expire_minutes: int = Field(..., ge=1)
+    refresh_token_expire_days: int = Field(default=7, ge=1)
+
+    demo_tenant_slug: str = Field(default="demo")
 
     app_name: str = "PG Management API"
     app_env: Literal["development", "staging", "production"] = "development"

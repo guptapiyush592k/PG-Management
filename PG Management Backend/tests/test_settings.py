@@ -28,11 +28,11 @@ def test_settings_loads_with_required_env(monkeypatch: pytest.MonkeyPatch) -> No
     assert settings.sync_database_url.startswith("postgresql+psycopg://")
 
 
-def test_settings_rejects_missing_required_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
-    monkeypatch.delenv("JWT_ALGORITHM", raising=False)
-    monkeypatch.delenv("ACCESS_TOKEN_EXPIRE_MINUTES", raising=False)
+def test_settings_rejects_invalid_required_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "mysql://invalid")
+    monkeypatch.setenv("JWT_SECRET_KEY", "short")
+    monkeypatch.setenv("JWT_ALGORITHM", "RS256")
+    monkeypatch.setenv("ACCESS_TOKEN_EXPIRE_MINUTES", "0")
 
     with pytest.raises(ValidationError):
         Settings()
@@ -41,10 +41,11 @@ def test_settings_rejects_missing_required_env(monkeypatch: pytest.MonkeyPatch) 
 def test_validate_settings_exits_on_invalid_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
-    monkeypatch.delenv("JWT_ALGORITHM", raising=False)
-    monkeypatch.delenv("ACCESS_TOKEN_EXPIRE_MINUTES", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "mysql://invalid")
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-key-with-at-least-32-chars")
+    monkeypatch.setenv("JWT_ALGORITHM", "HS256")
+    monkeypatch.setenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+    get_settings.cache_clear()
 
     with pytest.raises(SystemExit):
         validate_settings()
