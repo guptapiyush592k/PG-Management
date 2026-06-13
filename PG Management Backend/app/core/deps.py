@@ -13,6 +13,7 @@ from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.middleware.tenant_context import get_current_tenant_id, set_current_tenant_id
 from app.models.tenant import Tenant
+from app.models.tenant_user import TenantUser
 from app.models.user import User
 
 security_scheme = HTTPBearer(auto_error=False)
@@ -49,17 +50,34 @@ async def get_current_user(
 async def get_current_tenant(
     db: DbSession,
     current_user: Annotated[User, Depends(get_current_user)],
+    token_payload: Annotated[dict, Depends(get_token_payload)],
     x_tenant_id: Annotated[str | None, Header(alias="X-Tenant-ID")] = None,
 ) -> Tenant:
-    tenant_id = x_tenant_id or get_current_tenant_id() or str(current_user.tenant_id)
-    result = await db.execute(select(Tenant).where(Tenant.id == UUID(tenant_id)))
+    tenant_id_value = (
+        x_tenant_id
+        or get_current_tenant_id()
+        or token_payload.get("tenant_id")
+    )
+    if not tenant_id_value:
+        raise ForbiddenError("Tenant context is required")
+
+    tenant_uuid = UUID(str(tenant_id_value))
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_uuid))
     tenant = result.scalar_one_or_none()
     if tenant is None:
         raise NotFoundError("Tenant not found")
     if not tenant.is_active:
         raise ForbiddenError("Tenant account is inactive")
-    if tenant.id != current_user.tenant_id:
-        raise ForbiddenError("Tenant mismatch for authenticated user")
+
+    membership = await db.execute(
+        select(TenantUser).where(
+            TenantUser.tenant_id == tenant_uuid,
+            TenantUser.user_id == current_user.id,
+        )
+    )
+    if membership.scalar_one_or_none() is None:
+        raise ForbiddenError("User does not belong to this tenant")
+
     set_current_tenant_id(tenant.id)
     return tenant
 

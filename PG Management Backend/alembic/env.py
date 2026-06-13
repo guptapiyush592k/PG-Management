@@ -6,7 +6,17 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.settings import get_settings
 from app.db.base import Base
-from app.models import Tenant, User  # noqa: F401
+from app.models import (  # noqa: F401
+    Bed,
+    Booking,
+    Flat,
+    RentPayment,
+    Resident,
+    Room,
+    Tenant,
+    TenantUser,
+    User,
+)
 
 config = context.config
 
