@@ -1,5 +1,7 @@
 from collections.abc import AsyncGenerator
+import logging
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -7,7 +9,9 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from app.core.config import Settings, get_settings
+from app.core.settings import Settings, get_settings
+
+logger = logging.getLogger(__name__)
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -36,6 +40,19 @@ def get_session_factory(settings: Settings | None = None) -> async_sessionmaker[
             autocommit=False,
         )
     return _session_factory
+
+
+async def init_database(settings: Settings | None = None) -> None:
+    """Initialize the database engine and verify connectivity at startup."""
+    settings = settings or get_settings()
+    engine = get_engine(settings)
+    try:
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+        logger.info("Database connection established")
+    except Exception:
+        logger.exception("Failed to connect to database during startup")
+        raise
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

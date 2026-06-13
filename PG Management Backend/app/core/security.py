@@ -5,7 +5,7 @@ from uuid import UUID
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from app.core.config import Settings, get_settings
+from app.core.settings import Settings, get_settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -30,7 +30,7 @@ def create_access_token(
     expire = datetime.now(UTC) + (
         expires_delta
         if expires_delta is not None
-        else timedelta(minutes=settings.jwt_access_token_expire_minutes)
+        else timedelta(minutes=settings.access_token_expire_minutes)
     )
     payload: dict[str, Any] = {
         "sub": str(subject),

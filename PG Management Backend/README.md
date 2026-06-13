@@ -48,11 +48,16 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Edit `.env` and set at minimum:
+Edit `.env` and set all **required** variables:
 
-- `DATABASE_URL` — async connection string (`postgresql+asyncpg://...`)
-- `DATABASE_URL_SYNC` — sync connection string for Alembic (`postgresql+psycopg://...`)
-- `JWT_SECRET_KEY` — long random secret (min 32 characters)
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Async PostgreSQL URL (`postgresql+asyncpg://...`) |
+| `JWT_SECRET_KEY` | Secret key for JWT signing (min 32 characters) |
+| `JWT_ALGORITHM` | JWT algorithm (`HS256`, `HS384`, or `HS512`) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime in minutes |
+
+Optional: `DATABASE_URL_SYNC` for Alembic (auto-derived from `DATABASE_URL` if omitted).
 
 ### 3. Create database
 

@@ -1,5 +1,17 @@
+import os
 from collections.abc import AsyncGenerator
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
+
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/pg_management_test",
+)
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-with-at-least-32-chars")
+os.environ.setdefault("JWT_ALGORITHM", "HS256")
+os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+
+_init_db_patcher = patch("app.db.session.init_database", new_callable=AsyncMock)
+_init_db_patcher.start()
 
 import pytest
 from httpx import ASGITransport, AsyncClient

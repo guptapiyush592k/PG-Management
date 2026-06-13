@@ -4,7 +4,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.core.config import get_settings
+from app.core.settings import get_settings
 from app.db.base import Base
 from app.models import Tenant, User  # noqa: F401
 
@@ -17,7 +17,7 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    return os.getenv("DATABASE_URL_SYNC", get_settings().database_url_sync)
+    return os.getenv("DATABASE_URL_SYNC", get_settings().sync_database_url)
 
 
 def run_migrations_offline() -> None:
