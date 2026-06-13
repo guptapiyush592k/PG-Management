@@ -1,3 +1,25 @@
-from app.core.deps import CurrentTenant, CurrentUser, DbSession, JwtTenantId, SettingsDep
+from app.core.deps import (
+    AuthorizedContextDep,
+    CurrentMembership,
+    CurrentTenant,
+    CurrentTenantId,
+    CurrentUser,
+    CurrentUserId,
+    DbSession,
+    JwtCurrentUser,
+    JwtTenantId,
+    SettingsDep,
+)
 
-__all__ = ["CurrentTenant", "CurrentUser", "DbSession", "JwtTenantId", "SettingsDep"]
+__all__ = [
+    "AuthorizedContextDep",
+    "CurrentMembership",
+    "CurrentTenant",
+    "CurrentTenantId",
+    "CurrentUser",
+    "CurrentUserId",
+    "DbSession",
+    "JwtCurrentUser",
+    "JwtTenantId",
+    "SettingsDep",
+]

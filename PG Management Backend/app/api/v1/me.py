@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import CurrentUser, DbSession, JwtTenantId
+from app.api.deps import DbSession, JwtCurrentUser, JwtTenantId
 from app.schemas.tenant_context import MeContextResponse
 from app.services.tenant_context_service import TenantContextService
 
@@ -18,7 +18,7 @@ TenantContextServiceDep = Annotated[TenantContextService, Depends(get_tenant_con
 
 @router.get("/context", response_model=MeContextResponse)
 async def get_me_context(
-    current_user: CurrentUser,
+    current_user: JwtCurrentUser,
     tenant_id: JwtTenantId,
     service: TenantContextServiceDep,
 ) -> MeContextResponse:

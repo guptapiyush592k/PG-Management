@@ -7,7 +7,6 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.logging import request_id_ctx
-from app.middleware.tenant_context import set_current_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -34,21 +33,3 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         )
         return response
 
-
-class TenantContextMiddleware(BaseHTTPMiddleware):
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
-        tenant_header = request.headers.get("X-Tenant-ID")
-        if tenant_header:
-            try:
-                set_current_tenant_id(tenant_header)
-            except ValueError:
-                logger.warning("Invalid X-Tenant-ID header: %s", tenant_header)
-        else:
-            set_current_tenant_id(None)
-
-        try:
-            return await call_next(request)
-        finally:
-            set_current_tenant_id(None)

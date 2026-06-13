@@ -45,9 +45,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    from app.middleware.request_logging import RequestLoggingMiddleware, TenantContextMiddleware
+    from app.middleware.request_logging import RequestLoggingMiddleware
+    from app.middleware.tenant_authorization import TenantAuthorizationMiddleware
 
-    app.add_middleware(TenantContextMiddleware)
+    app.add_middleware(TenantAuthorizationMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
 
     app.include_router(auth_router, prefix="/auth")

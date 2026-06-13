@@ -5,7 +5,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.api.v1.me import get_tenant_context_service
-from app.core.deps import get_current_user, get_jwt_tenant_id
+from app.core.deps import get_jwt_current_user, get_jwt_tenant_id
 from app.models.user import User
 from app.schemas.tenant_context import (
     MeContextResponse,
@@ -54,7 +54,7 @@ async def test_me_context_route_returns_context(
     )
 
     app = client._transport.app
-    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_jwt_current_user] = lambda: user
     app.dependency_overrides[get_jwt_tenant_id] = lambda: tenant_id
     app.dependency_overrides[get_tenant_context_service] = lambda: mock_context_service
 
@@ -105,7 +105,7 @@ async def test_me_context_ignores_client_tenant_header(
     )
 
     app = client._transport.app
-    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_jwt_current_user] = lambda: user
     app.dependency_overrides[get_jwt_tenant_id] = lambda: jwt_tenant_id
     app.dependency_overrides[get_tenant_context_service] = lambda: mock_context_service
 
