@@ -38,6 +38,19 @@ class TenantUserRepository(BaseRepository[TenantUser]):
         )
         return result.scalars().first()
 
+    async def get_membership_for_user_and_tenant(
+        self,
+        user_id: UUID,
+        tenant_id: UUID,
+    ) -> TenantUser | None:
+        result = await self.session.execute(
+            select(TenantUser).where(
+                TenantUser.user_id == user_id,
+                TenantUser.tenant_id == tenant_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
 
 class RefreshTokenRepository(BaseRepository[RefreshToken]):
     def __init__(self, session: AsyncSession) -> None:

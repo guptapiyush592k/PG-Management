@@ -1,6 +1,7 @@
+import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, String, Text
+from sqlalchemy import Boolean, Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -13,6 +14,13 @@ if TYPE_CHECKING:
     from app.models.tenant_user import TenantUser
 
 
+class SubscriptionStatus(str, enum.Enum):
+    ACTIVE = "active"
+    TRIAL = "trial"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+
 class Tenant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """PG business / organization account."""
 
@@ -23,6 +31,15 @@ class Tenant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    primary_color: Mapped[str] = mapped_column(String(7), default="#2563EB", nullable=False)
+    secondary_color: Mapped[str] = mapped_column(String(7), default="#1E40AF", nullable=False)
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    subscription_status: Mapped[SubscriptionStatus] = mapped_column(
+        Enum(SubscriptionStatus, name="subscription_status", native_enum=False),
+        default=SubscriptionStatus.TRIAL,
+        nullable=False,
+    )
 
     members: Mapped[list["TenantUser"]] = relationship(
         "TenantUser",

@@ -5,7 +5,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.rent_payment import PaymentStatus, RentPayment
 from app.models.resident import Resident
 from app.models.room import Room
-from app.models.tenant import Tenant
+from app.models.tenant import Tenant, SubscriptionStatus
 from app.models.tenant_user import TenantUser, TenantUserRole
 from app.models.user import User
 
@@ -21,6 +21,7 @@ __all__ = [
     "Resident",
     "Room",
     "Tenant",
+    "SubscriptionStatus",
     "TenantUser",
     "TenantUserRole",
     "User",

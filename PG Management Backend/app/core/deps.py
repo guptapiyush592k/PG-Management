@@ -84,3 +84,16 @@ async def get_current_tenant(
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentTenant = Annotated[Tenant, Depends(get_current_tenant)]
+
+
+async def get_jwt_tenant_id(
+    token_payload: Annotated[dict, Depends(get_token_payload)],
+) -> UUID:
+    """Resolve tenant id from JWT only — never from client-supplied headers."""
+    tenant_id = token_payload.get("tenant_id")
+    if not tenant_id:
+        raise ForbiddenError("Tenant context missing from access token")
+    return UUID(str(tenant_id))
+
+
+JwtTenantId = Annotated[UUID, Depends(get_jwt_tenant_id)]

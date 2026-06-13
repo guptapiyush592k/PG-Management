@@ -1,3 +1,3 @@
-from app.core.deps import CurrentTenant, CurrentUser, DbSession, SettingsDep
+from app.core.deps import CurrentTenant, CurrentUser, DbSession, JwtTenantId, SettingsDep
 
-__all__ = ["CurrentTenant", "CurrentUser", "DbSession", "SettingsDep"]
+__all__ = ["CurrentTenant", "CurrentUser", "DbSession", "JwtTenantId", "SettingsDep"]

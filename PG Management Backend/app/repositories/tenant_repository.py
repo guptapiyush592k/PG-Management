@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.tenant import Tenant
+from app.models.tenant import SubscriptionStatus, Tenant
 from app.repositories.base import BaseRepository
 
 
@@ -18,5 +18,13 @@ class TenantRepository(BaseRepository[Tenant]):
         if tenant is not None:
             return tenant
 
-        tenant = Tenant(name=name, slug=slug, is_active=True)
+        tenant = Tenant(
+            name=name,
+            slug=slug,
+            is_active=True,
+            is_demo=True,
+            subscription_status=SubscriptionStatus.TRIAL,
+            primary_color="#2563EB",
+            secondary_color="#1E40AF",
+        )
         return await self.add(tenant)
