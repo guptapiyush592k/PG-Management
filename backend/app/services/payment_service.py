@@ -57,10 +57,16 @@ class PaymentService:
         await self.session.commit()
         return self._to_response(payment)
 
+    async def get_payment(self, payment_id: UUID) -> PaymentResponse:
+        await self._sync_overdue_status()
+        payment = await self._get_payment_or_404(payment_id)
+        return self._to_response(payment)
+
     async def list_payments(
         self,
         params: PaymentListParams,
     ) -> PaginatedResponse[PaymentResponse]:
+        await self._sync_overdue_status()
         if params.resident_id is not None:
             await self._ensure_resident_exists(params.resident_id)
 
@@ -86,25 +92,45 @@ class PaymentService:
     async def update_payment(self, payment_id: UUID, data: PaymentUpdate) -> PaymentResponse:
         require_permission(self.role, "manage_payments")
         payment = await self._get_payment_or_404(payment_id)
-        await self._ensure_resident_exists(data.resident_id)
-        await self._ensure_booking_valid(data.booking_id, data.resident_id)
-        paid_date = self._resolve_paid_date(data.status, data.paid_date)
 
-        updated = await self.payment_repo.update(
-            payment,
-            resident_id=data.resident_id,
-            booking_id=data.booking_id,
-            amount=data.amount,
-            due_date=data.due_date,
-            paid_date=paid_date,
-            status=data.status,
-            payment_mode=data.payment_mode,
-            notes=data.notes,
+        target_resident_id = (
+            data.resident_id if "resident_id" in data.model_fields_set else payment.resident_id
         )
+        target_booking_id = (
+            data.booking_id if "booking_id" in data.model_fields_set else payment.booking_id
+        )
+        target_status = data.status if "status" in data.model_fields_set else payment.status
+        target_paid_date = (
+            data.paid_date if "paid_date" in data.model_fields_set else payment.paid_date
+        )
+
+        await self._ensure_resident_exists(target_resident_id)
+        await self._ensure_booking_valid(target_booking_id, target_resident_id)
+        paid_date = self._resolve_paid_date(target_status, target_paid_date)
+
+        if "resident_id" in data.model_fields_set and data.resident_id is not None:
+            payment.resident_id = data.resident_id
+        if "booking_id" in data.model_fields_set:
+            payment.booking_id = data.booking_id
+        if "amount" in data.model_fields_set and data.amount is not None:
+            payment.amount = data.amount
+        if "due_date" in data.model_fields_set and data.due_date is not None:
+            payment.due_date = data.due_date
+        payment.paid_date = paid_date
+        if "status" in data.model_fields_set and data.status is not None:
+            payment.status = data.status
+        if "payment_mode" in data.model_fields_set:
+            payment.payment_mode = data.payment_mode.strip() if data.payment_mode else None
+        if "notes" in data.model_fields_set:
+            payment.notes = data.notes.strip() if data.notes else None
+
+        await self.session.flush()
+        await self.session.refresh(payment)
         await self.session.commit()
-        return self._to_response(updated)
+        return self._to_response(payment)
 
     async def get_summary(self) -> PaymentSummaryResponse:
+        await self._sync_overdue_status()
         amounts, counts = await self.payment_repo.get_summary()
         return PaymentSummaryResponse(
             total_collected=amounts[PaymentStatus.PAID],
@@ -112,6 +138,10 @@ class PaymentService:
             overdue_amount=amounts[PaymentStatus.OVERDUE],
             counts=counts,
         )
+
+    async def _sync_overdue_status(self) -> None:
+        await self.payment_repo.mark_overdue_before(date.today())
+        await self.session.commit()
 
     async def _get_payment_or_404(self, payment_id: UUID) -> RentPayment:
         payment = await self.payment_repo.get_by_id(payment_id)

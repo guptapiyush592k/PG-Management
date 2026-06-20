@@ -107,10 +107,28 @@ async def get_current_tenant_id(
     return auth_context.tenant_id
 
 
-# JWT-only tenant resolution for /me/context (does not trust X-Tenant-ID).
+# JWT-only tenant resolution for /me/context (prefers X-Tenant-ID when provided).
 async def get_jwt_tenant_id(
+    db: DbSession,
     token_payload: Annotated[dict, Depends(get_token_payload)],
+    x_tenant_id: Annotated[str | None, Header(alias=TENANT_ID_HEADER)] = None,
 ) -> UUID:
+    user_id = token_payload.get("sub")
+    if not user_id:
+        raise UnauthorizedError("Invalid token payload")
+
+    if x_tenant_id:
+        tenant_id = UUID(str(x_tenant_id))
+        from app.repositories.refresh_token_repository import TenantUserRepository
+
+        membership = await TenantUserRepository(db).get_membership_for_user_and_tenant(
+            UUID(str(user_id)),
+            tenant_id,
+        )
+        if membership is None:
+            raise ForbiddenError("User does not have access to this tenant")
+        return tenant_id
+
     tenant_id = token_payload.get("tenant_id")
     if not tenant_id:
         raise ForbiddenError("Tenant context missing from access token")

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class FlatBase(BaseModel):
@@ -14,9 +14,15 @@ class FlatCreate(FlatBase):
 
 
 class FlatUpdate(BaseModel):
-    name: str = Field(min_length=1, max_length=255)
-    address: str = Field(min_length=1, max_length=2000)
-    is_active: bool
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    address: str | None = Field(default=None, min_length=1, max_length=2000)
+    is_active: bool | None = None
+
+    @model_validator(mode="after")
+    def require_at_least_one_field(self) -> "FlatUpdate":
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
+        return self
 
 
 class FlatResponse(BaseModel):

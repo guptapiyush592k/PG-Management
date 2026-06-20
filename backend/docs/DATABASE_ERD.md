@@ -227,8 +227,10 @@ Tenant (PG Business)
 - **Composite indexes**:
   - `bookings (tenant_id, status)`
   - `bookings (bed_id, status)`
+  - `bookings (bed_id) WHERE status = 'active'` — partial unique (`uq_bookings_one_active_per_bed`)
   - `rent_payments (tenant_id, due_date)`
   - `rent_payments (tenant_id, status)`
+  - `refresh_tokens (expires_at)`
 
 ## Naming Notes
 
@@ -255,3 +257,4 @@ alembic upgrade head
 | `004_tenant_branding` | Tenant logo, colors, `is_demo`, `subscription_status` |
 | `005_role_rename` | Rename `staff` → `manager`; add `super_admin` role value |
 | `006_stored_files` | `stored_files` table for file upload metadata |
+| `007_review_fixes` | Partial unique index on active bookings per bed; refresh token expiry index |

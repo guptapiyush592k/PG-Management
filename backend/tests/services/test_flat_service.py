@@ -34,7 +34,15 @@ def flat(tenant_id: uuid.UUID) -> Flat:
 def flat_service(tenant_id: uuid.UUID) -> FlatService:
     session = AsyncMock()
     session.commit = AsyncMock()
-    return FlatService(session, tenant_id, TenantUserRole.OWNER, flat_repo=AsyncMock())
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+    return FlatService(
+        session,
+        tenant_id,
+        TenantUserRole.OWNER,
+        flat_repo=AsyncMock(),
+        room_repo=AsyncMock(),
+    )
 
 
 @pytest.mark.asyncio
@@ -89,14 +97,14 @@ async def test_update_flat(
     flat: Flat,
 ) -> None:
     flat_service.flat_repo.get_by_id.return_value = flat
-    flat_service.flat_repo.update.return_value = flat
 
     result = await flat_service.update_flat(
         flat.id,
         FlatUpdate(name="Updated PG", address="New address", is_active=False),
     )
 
-    assert result.name == "Sunrise PG"
+    assert result.name == "Updated PG"
+    assert result.is_active is False
     flat_service.session.commit.assert_awaited_once()
 
 
@@ -121,6 +129,7 @@ async def test_delete_flat(
     flat: Flat,
 ) -> None:
     flat_service.flat_repo.get_by_id.return_value = flat
+    flat_service.room_repo.count.return_value = 0
 
     await flat_service.delete_flat(flat.id)
 

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class ResidentBase(BaseModel):
@@ -20,14 +20,20 @@ class ResidentCreate(ResidentBase):
 
 
 class ResidentUpdate(BaseModel):
-    name: str = Field(min_length=1, max_length=255)
-    phone: str = Field(min_length=1, max_length=20)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    phone: str | None = Field(default=None, min_length=1, max_length=20)
     email: EmailStr | None = None
     aadhaar: str | None = Field(default=None, pattern=r"^\d{12}$")
-    joining_date: date
-    deposit: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    joining_date: date | None = None
+    deposit: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     notes: str | None = Field(default=None, max_length=5000)
-    is_active: bool
+    is_active: bool | None = None
+
+    @model_validator(mode="after")
+    def require_at_least_one_field(self) -> "ResidentUpdate":
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
+        return self
 
 
 class ResidentResponse(BaseModel):

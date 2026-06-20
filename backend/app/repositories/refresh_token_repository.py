@@ -85,6 +85,18 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         token.revoked_at = datetime.now(UTC)
         await self.session.flush()
 
+    async def revoke_all_for_user(self, user_id: UUID) -> None:
+        result = await self.session.execute(
+            select(RefreshToken).where(
+                RefreshToken.user_id == user_id,
+                RefreshToken.revoked_at.is_(None),
+            )
+        )
+        now = datetime.now(UTC)
+        for token in result.scalars().all():
+            token.revoked_at = now
+        await self.session.flush()
+
     def is_valid(self, token: RefreshToken) -> bool:
         now = datetime.now(UTC)
         expires_at = token.expires_at

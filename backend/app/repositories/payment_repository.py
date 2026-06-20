@@ -1,8 +1,9 @@
 from datetime import date
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rent_payment import PaymentStatus, RentPayment
@@ -143,3 +144,16 @@ class PaymentRepository(BaseRepository[RentPayment]):
             amounts[status] = Decimal(str(amount))
             counts[status] = int(count)
         return amounts, counts
+
+    async def mark_overdue_before(self, as_of: date) -> None:
+        stmt = (
+            update(RentPayment)
+            .where(
+                RentPayment.tenant_id == self.tenant_id,
+                RentPayment.status == PaymentStatus.PENDING,
+                RentPayment.due_date < as_of,
+            )
+            .values(status=PaymentStatus.OVERDUE)
+        )
+        await self.session.execute(stmt)
+        await self.session.flush()

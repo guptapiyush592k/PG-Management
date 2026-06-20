@@ -56,6 +56,14 @@ async def list_bookings(
     return await service.list_bookings(params)
 
 
+@router.get("/{booking_id}", response_model=BookingResponse)
+async def get_booking(
+    booking_id: UUID,
+    service: BookingServiceDep,
+) -> BookingResponse:
+    return await service.get_booking(booking_id)
+
+
 @router.post("/{booking_id}/checkout", response_model=BookingResponse)
 async def checkout_booking(
     booking_id: UUID,

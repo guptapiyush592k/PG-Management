@@ -34,6 +34,8 @@ Both implement the `StorageProvider` abstraction in [`app/storage/base.py`](../a
 | `LOCAL_STORAGE_PATH` | `./uploads` | Directory for local storage |
 | `LOCAL_STORAGE_PUBLIC_BASE_URL` | `http://localhost:8000` | Base URL embedded in local presigned URLs |
 | `STORAGE_PRESIGNED_URL_EXPIRES_SECONDS` | `3600` | Upload/download URL lifetime (60–86400) |
+| `STORAGE_SIGNING_KEY` | JWT secret | HMAC key for local presigned URLs (use a separate value in production) |
+| `MAX_UPLOAD_BYTES` | `10485760` | Maximum upload size (10 MB default) |
 | `S3_BUCKET_NAME` | — | Required when `STORAGE_PROVIDER=s3` |
 | `S3_REGION` | — | Required when `STORAGE_PROVIDER=s3` |
 | `S3_ENDPOINT_URL` | — | Optional custom endpoint (MinIO, etc.) |
@@ -41,6 +43,15 @@ Both implement the `StorageProvider` abstraction in [`app/storage/base.py`](../a
 | `S3_SECRET_ACCESS_KEY` | — | Required when `STORAGE_PROVIDER=s3` |
 
 Switch providers by changing `STORAGE_PROVIDER` and restarting the app. The active provider is injected through FastAPI dependencies (`StorageProviderDep`).
+
+## Allowed content types
+
+Upload URL requests are limited to:
+
+- `application/pdf`
+- `image/jpeg`, `image/png`, `image/webp`
+- `application/msword`
+- `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
 
 ## Upload flow
 
@@ -74,11 +85,17 @@ Requires `manage_files` permission (owners, managers, super admins).
 
 ### 2. Upload bytes directly to storage
 
-**S3 provider:** `PUT` the file to `upload_url` with the returned headers. No further API call is needed.
+**S3 provider:** `PUT` the file to `upload_url` with the returned headers, then call confirm:
 
-**Local provider:** `PUT` the file to the returned `upload_url` (routes to `PUT /api/v1/files/{file_id}/content` with signed query params).
+```http
+POST /api/v1/files/{file_id}/confirm
+Authorization: Bearer <token>
+X-Tenant-ID: <uuid>
+```
 
-### 3. List files
+**Local provider:** `PUT` the file to the returned `upload_url` (routes to `PUT /api/v1/files/{file_id}/content?expires=...&signature=...`). No JWT is required when valid signed query parameters are present.
+
+### 3. List or get files
 
 ```http
 GET /api/v1/files?page=1&page_size=20
@@ -88,16 +105,26 @@ X-Tenant-ID: <uuid>
 
 Uploaded files include a time-limited `download_url` in each item.
 
-## Local-only helper routes
+## Signed local file access
 
-When `STORAGE_PROVIDER=local`, these routes complete the presigned-URL flow:
+Local presigned URLs are validated by `SignedFileAccessMiddleware` before the request reaches tenant JWT middleware. Valid signed URLs:
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| PUT | `/api/v1/files/{file_id}/content` | Upload file bytes (signed URL target) |
-| GET | `/api/v1/files/{file_id}/content` | Download file bytes (signed URL target) |
+- Do **not** require `Authorization` or `X-Tenant-ID`
+- Bind to `file_id`, `storage_key`, and expiry via HMAC (`STORAGE_SIGNING_KEY`)
+- Set tenant context automatically from the `stored_files` row
 
-These are not used when `STORAGE_PROVIDER=s3` — clients upload and download directly against the S3-compatible endpoint.
+Authenticated users may also access `/files/{file_id}/content` with JWT + `X-Tenant-ID` (requires `manage_files`).
+
+## Local helper routes
+
+When `STORAGE_PROVIDER=local`:
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| PUT | `/api/v1/files/{file_id}/content` | Signed URL or JWT | Upload file bytes |
+| GET | `/api/v1/files/{file_id}/content` | Signed URL or JWT | Download file bytes |
+
+When `STORAGE_PROVIDER=s3`, clients upload/download directly against the S3-compatible endpoint. Use `POST /files/{file_id}/confirm` after upload.
 
 ## Dependency injection
 

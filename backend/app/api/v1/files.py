@@ -1,10 +1,12 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Header, Query, Request, status
 from fastapi.responses import Response as FastAPIResponse
 
 from app.api.deps import AuthorizedContextDep, DbSession
+from app.core.http_utils import safe_content_disposition
+from app.core.settings import Settings, get_settings
 from app.models.stored_file import FileStatus
 from app.schemas.common import PaginatedResponse
 from app.schemas.file import (
@@ -33,7 +35,30 @@ def get_file_service(
     )
 
 
+def get_signed_file_service(
+    request: Request,
+    db: DbSession,
+    storage: StorageProviderDep,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> FileService:
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if tenant_id is None:
+        tenant_id = request.headers.get("X-Tenant-ID")
+    if tenant_id is None:
+        from app.core.exceptions import ForbiddenError
+
+        raise ForbiddenError("Tenant context is required")
+    return FileService(
+        db,
+        UUID(str(tenant_id)),
+        None,
+        storage,
+        settings=settings,
+    )
+
+
 FileServiceDep = Annotated[FileService, Depends(get_file_service)]
+SignedFileServiceDep = Annotated[FileService, Depends(get_signed_file_service)]
 
 
 def get_list_params(
@@ -65,6 +90,23 @@ async def create_upload_url(
     return await service.create_upload_url(data)
 
 
+@router.post("/{file_id}/confirm", response_model=FileResponse)
+async def confirm_file_upload(
+    file_id: UUID,
+    service: FileServiceDep,
+) -> FileResponse:
+    """Mark an S3 upload complete after the client PUTs to the presigned URL."""
+    return await service.confirm_upload(file_id)
+
+
+@router.get("/{file_id}", response_model=FileResponse)
+async def get_file(
+    file_id: UUID,
+    service: FileServiceDep,
+) -> FileResponse:
+    return await service.get_file(file_id)
+
+
 @router.get("", response_model=PaginatedResponse[FileResponse])
 async def list_files(
     params: FileListParamsDep,
@@ -77,11 +119,24 @@ async def list_files(
 async def upload_file_content(
     file_id: UUID,
     request: Request,
-    service: FileServiceDep,
-    expires: int = Query(..., ge=1),
-    signature: str = Query(..., min_length=1),
+    service: SignedFileServiceDep,
+    settings: Annotated[Settings, Depends(get_settings)],
+    expires: int | None = Query(default=None, ge=1),
+    signature: str | None = Query(default=None, min_length=1),
 ) -> FileResponse:
     """Complete a local-storage upload using the presigned URL from POST /files/upload-url."""
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            if int(content_length) > settings.max_upload_bytes:
+                from app.core.exceptions import ValidationError
+
+                raise ValidationError(
+                    f"File exceeds maximum allowed size of {settings.max_upload_bytes} bytes"
+                )
+        except ValueError:
+            pass
+
     content = await request.body()
     return await service.complete_local_upload(
         file_id,
@@ -94,9 +149,9 @@ async def upload_file_content(
 @router.get("/{file_id}/content")
 async def download_file_content(
     file_id: UUID,
-    service: FileServiceDep,
-    expires: int = Query(..., ge=1),
-    signature: str = Query(..., min_length=1),
+    service: SignedFileServiceDep,
+    expires: int | None = Query(default=None, ge=1),
+    signature: str | None = Query(default=None, min_length=1),
 ) -> FastAPIResponse:
     """Download a file stored locally using a signed URL."""
     stored_file, content = await service.download_local_file(
@@ -107,5 +162,7 @@ async def download_file_content(
     return FastAPIResponse(
         content=content,
         media_type=stored_file.content_type,
-        headers={"Content-Disposition": f'inline; filename="{stored_file.filename}"'},
+        headers={
+            "Content-Disposition": safe_content_disposition(stored_file.filename, inline=True)
+        },
     )

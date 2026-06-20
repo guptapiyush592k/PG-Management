@@ -2,10 +2,11 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictError, NotFoundError
-from app.models.bed import Bed
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
+from app.models.bed import Bed, BedStatus
 from app.models.tenant_user import TenantUserRole
 from app.repositories.bed_repository import BedRepository
+from app.repositories.booking_repository import BookingRepository
 from app.repositories.room_repository import RoomRepository
 from app.schemas.bed import BedCreate, BedListParams, BedResponse, BedUpdate
 from app.schemas.common import PaginatedResponse
@@ -21,12 +22,14 @@ class BedService:
         *,
         bed_repo: BedRepository | None = None,
         room_repo: RoomRepository | None = None,
+        booking_repo: BookingRepository | None = None,
     ) -> None:
         self.session = session
         self.tenant_id = tenant_id
         self.role = role
         self.bed_repo = bed_repo or BedRepository(session, tenant_id)
         self.room_repo = room_repo or RoomRepository(session, tenant_id)
+        self.booking_repo = booking_repo or BookingRepository(session, tenant_id)
 
     async def create_bed(self, data: BedCreate) -> BedResponse:
         require_permission(self.role, "manage_beds")
@@ -72,26 +75,41 @@ class BedService:
     async def update_bed(self, bed_id: UUID, data: BedUpdate) -> BedResponse:
         require_permission(self.role, "manage_beds")
         bed = await self._get_bed_or_404(bed_id)
-        await self._ensure_room_exists(data.room_id)
+
+        target_room_id = data.room_id if "room_id" in data.model_fields_set else bed.room_id
+        target_bed_label = data.bed_label if "bed_label" in data.model_fields_set else bed.bed_label
+        if target_bed_label is None:
+            raise ValidationError("bed_label cannot be null")
+
+        await self._ensure_room_exists(target_room_id)
         await self._ensure_unique_bed_label(
-            data.room_id,
-            data.bed_label,
+            target_room_id,
+            target_bed_label,
             exclude_id=bed_id,
         )
 
-        updated = await self.bed_repo.update(
-            bed,
-            room_id=data.room_id,
-            bed_label=data.bed_label,
-            rent_amount=data.rent_amount,
-            status=data.status,
-        )
+        if "room_id" in data.model_fields_set and data.room_id is not None:
+            bed.room_id = data.room_id
+        if "bed_label" in data.model_fields_set and data.bed_label is not None:
+            bed.bed_label = data.bed_label.strip()
+        if "rent_amount" in data.model_fields_set and data.rent_amount is not None:
+            bed.rent_amount = data.rent_amount
+        if "status" in data.model_fields_set and data.status is not None:
+            bed.status = data.status
+
+        await self.session.flush()
+        await self.session.refresh(bed)
         await self.session.commit()
-        return self._to_response(updated)
+        return self._to_response(bed)
 
     async def delete_bed(self, bed_id: UUID) -> None:
         require_permission(self.role, "manage_beds")
         bed = await self._get_bed_or_404(bed_id)
+        if bed.status != BedStatus.VACANT:
+            raise ValidationError("Cannot delete a bed that is not vacant")
+        active_booking = await self.booking_repo.get_active_by_bed_id(bed.id)
+        if active_booking is not None:
+            raise ValidationError("Cannot delete a bed with an active booking")
         await self.bed_repo.delete(bed)
         await self.session.commit()
 

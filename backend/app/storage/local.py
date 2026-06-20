@@ -85,6 +85,12 @@ class LocalStorageProvider(StorageProvider):
         path = self._root / storage_key
         return path.read_bytes()
 
+    async def get_object_metadata(self, storage_key: str) -> tuple[bool, int | None]:
+        path = self._root / storage_key
+        if not path.exists():
+            return False, None
+        return True, path.stat().st_size
+
     def verify_signature(
         self,
         file_id: str,
@@ -107,7 +113,7 @@ class LocalStorageProvider(StorageProvider):
     ) -> str:
         payload = f"{purpose}:{file_id}:{storage_key}:{int(expires_at.timestamp())}"
         digest = hmac.new(
-            self._settings.jwt_secret_key.encode(),
+            self._settings.effective_storage_signing_key.encode(),
             payload.encode(),
             hashlib.sha256,
         ).hexdigest()

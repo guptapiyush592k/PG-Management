@@ -46,9 +46,12 @@ def create_app() -> FastAPI:
     )
 
     from app.middleware.request_logging import RequestLoggingMiddleware
+    from app.middleware.signed_file_access import AuthRateLimitMiddleware, SignedFileAccessMiddleware
     from app.middleware.tenant_authorization import TenantAuthorizationMiddleware
 
     app.add_middleware(TenantAuthorizationMiddleware)
+    app.add_middleware(SignedFileAccessMiddleware)
+    app.add_middleware(AuthRateLimitMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
 
     app.include_router(auth_router, prefix="/auth")

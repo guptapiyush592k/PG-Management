@@ -98,7 +98,9 @@ Middleware runs in this order (last added runs first on incoming requests):
 ```mermaid
 flowchart TB
     Request --> RequestLogging
-    RequestLogging --> TenantAuth
+    RequestLogging --> AuthRateLimit
+    AuthRateLimit --> SignedFileAccess
+    SignedFileAccess --> TenantAuth
     TenantAuth --> CORS
     CORS --> Router
 ```
@@ -106,6 +108,8 @@ flowchart TB
 | Middleware | Purpose |
 |------------|---------|
 | `RequestLoggingMiddleware` | Assigns `X-Request-ID`, logs request timing |
+| `AuthRateLimitMiddleware` | Rate-limits `/auth/*` by client IP |
+| `SignedFileAccessMiddleware` | Validates local presigned file URLs (HMAC) |
 | `TenantAuthorizationMiddleware` | Validates JWT + tenant membership on protected routes |
 | `CORSMiddleware` | Allows configured frontend origins |
 
@@ -113,7 +117,7 @@ flowchart TB
 
 | Prefix | Router | Auth required |
 |--------|--------|---------------|
-| `/auth` | Auth (signup, login, refresh, logout) | No |
+| `/auth` | Auth (signup, login, refresh, logout, switch-tenant) | No |
 | `/me` | Current user context | JWT only |
 | `/api/v1` | Health, domain CRUD, examples | JWT + `X-Tenant-ID` |
 
@@ -145,7 +149,8 @@ Defined in [`app/core/paths.py`](../app/core/paths.py):
 | Type | Examples | Requirements |
 |------|----------|--------------|
 | Public | `/auth/*`, `/api/v1/health`, `/docs` | None |
-| JWT-only | `GET /me/context` | Bearer token; tenant from JWT claim |
+| JWT-only | `GET /me/context` | Bearer token; tenant from JWT claim or optional `X-Tenant-ID` |
+| Signed file | `PUT/GET /api/v1/files/{id}/content` | HMAC signed query params (local storage) |
 | Tenant-protected | `/api/v1/flats`, `/api/v1/rooms`, etc. | Bearer token + `X-Tenant-ID` header |
 
 ## Error handling
@@ -153,8 +158,10 @@ Defined in [`app/core/paths.py`](../app/core/paths.py):
 All business errors use custom exceptions in [`app/core/exceptions.py`](../app/core/exceptions.py). Global handlers convert them to JSON:
 
 ```json
-{ "detail": "Human-readable message", "error_code": "not_found" }
+{ "detail": "Human-readable message", "error_code": "not_found", "errors": [ ... ] }
 ```
+
+The optional `errors` array is included for request validation failures (`422`).
 
 Stack traces are never sent to clients. Unexpected errors are logged and return `500`.
 

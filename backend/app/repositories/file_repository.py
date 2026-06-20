@@ -8,8 +8,14 @@ from app.repositories.base import BaseRepository
 
 
 class FileRepository(BaseRepository[StoredFile]):
-    def __init__(self, session: AsyncSession, tenant_id: UUID) -> None:
+    def __init__(self, session: AsyncSession, tenant_id: UUID | None) -> None:
         super().__init__(session, StoredFile, tenant_id=tenant_id)
+
+    async def get_by_id_global(self, file_id: UUID) -> StoredFile | None:
+        result = await self.session.execute(
+            select(StoredFile).where(StoredFile.id == file_id)
+        )
+        return result.scalar_one_or_none()
 
     def _apply_filters(
         self,

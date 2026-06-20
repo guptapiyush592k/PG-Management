@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 import logging
 
+from fastapi import Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -55,7 +56,12 @@ async def init_database(settings: Settings | None = None) -> None:
         raise
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
+    shared = getattr(request.state, "db_session", None)
+    if shared is not None:
+        yield shared
+        return
+
     session_factory = get_session_factory()
     async with session_factory() as session:
         try:

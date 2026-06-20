@@ -2,7 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.room import Room
 from app.models.tenant_user import TenantUserRole
 from app.repositories.flat_repository import FlatRepository
@@ -65,20 +65,30 @@ class RoomService:
     async def update_room(self, room_id: UUID, data: RoomUpdate) -> RoomResponse:
         require_permission(self.role, "manage_rooms")
         room = await self._get_room_or_404(room_id)
-        await self._ensure_flat_exists(data.flat_id)
+
+        target_flat_id = data.flat_id if "flat_id" in data.model_fields_set else room.flat_id
+        target_room_number = (
+            data.room_number if "room_number" in data.model_fields_set else room.room_number
+        )
+        if target_room_number is None:
+            raise ValidationError("room_number cannot be null")
+
+        await self._ensure_flat_exists(target_flat_id)
         await self._ensure_unique_room_number(
-            data.flat_id,
-            data.room_number,
+            target_flat_id,
+            target_room_number,
             exclude_id=room_id,
         )
 
-        updated = await self.room_repo.update(
-            room,
-            flat_id=data.flat_id,
-            room_number=data.room_number,
-        )
+        if "flat_id" in data.model_fields_set and data.flat_id is not None:
+            room.flat_id = data.flat_id
+        if "room_number" in data.model_fields_set and data.room_number is not None:
+            room.room_number = data.room_number.strip()
+
+        await self.session.flush()
+        await self.session.refresh(room)
         await self.session.commit()
-        return self._to_response(updated)
+        return self._to_response(room)
 
     async def delete_room(self, room_id: UUID) -> None:
         require_permission(self.role, "manage_rooms")

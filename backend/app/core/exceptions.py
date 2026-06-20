@@ -9,6 +9,7 @@ from pydantic import BaseModel
 class ErrorResponse(BaseModel):
     detail: str
     error_code: str
+    errors: list[dict[str, Any]] | None = None
 
 
 class AppException(Exception):
@@ -70,8 +71,15 @@ class ValidationError(AppException):
         )
 
 
-def _error_payload(detail: str, error_code: str) -> dict[str, Any]:
-    return ErrorResponse(detail=detail, error_code=error_code).model_dump()
+def _error_payload(
+    detail: str,
+    error_code: str,
+    *,
+    errors: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    return ErrorResponse(detail=detail, error_code=error_code, errors=errors).model_dump(
+        exclude_none=True
+    )
 
 
 async def app_exception_handler(_request: Request, exc: AppException) -> JSONResponse:
@@ -84,9 +92,20 @@ async def app_exception_handler(_request: Request, exc: AppException) -> JSONRes
 async def validation_exception_handler(
     _request: Request, exc: RequestValidationError
 ) -> JSONResponse:
+    errors = []
+    for error in exc.errors():
+        item = dict(error)
+        ctx = item.get("ctx")
+        if isinstance(ctx, dict):
+            item["ctx"] = {key: str(value) for key, value in ctx.items()}
+        errors.append(item)
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=_error_payload("Request validation failed", "request_validation_error"),
+        content=_error_payload(
+            "Request validation failed",
+            "request_validation_error",
+            errors=errors,
+        ),
     )
 
 

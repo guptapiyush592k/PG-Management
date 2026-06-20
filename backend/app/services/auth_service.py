@@ -66,7 +66,7 @@ class AuthService:
         await self.tenant_user_repo.create_membership(
             tenant_id=demo_tenant.id,
             user_id=user.id,
-            role=TenantUserRole.OWNER,
+            role=TenantUserRole.MANAGER,
             is_primary=True,
         )
 
@@ -81,11 +81,16 @@ class AuthService:
         if not user.is_active:
             raise ForbiddenError("User account is inactive")
 
-        membership = await self.tenant_user_repo.get_primary_for_user(user.id)
-        if membership is None:
-            raise ForbiddenError("User is not assigned to any tenant")
+        tenant_id = await self._resolve_login_tenant_id(user.id, data.tenant_id)
+        tokens = await self._issue_tokens(user, tenant_id)
+        await self.session.commit()
+        return self._to_token_response(tokens)
 
-        tokens = await self._issue_tokens(user, membership.tenant_id)
+    async def switch_tenant(self, user: User, tenant_id: UUID) -> TokenResponse:
+        if not user.is_active:
+            raise ForbiddenError("User account is inactive")
+        await self._ensure_tenant_membership(user.id, tenant_id)
+        tokens = await self._issue_tokens(user, tenant_id)
         await self.session.commit()
         return self._to_token_response(tokens)
 
@@ -97,7 +102,13 @@ class AuthService:
             raise UnauthorizedError("Invalid refresh token payload")
 
         stored = await self.refresh_token_repo.get_by_id(UUID(jti))
-        if stored is None or not self.refresh_token_repo.is_valid(stored):
+        if stored is None:
+            raise UnauthorizedError("Refresh token is invalid or expired")
+        if stored.revoked_at is not None:
+            await self.refresh_token_repo.revoke_all_for_user(stored.user_id)
+            await self.session.commit()
+            raise UnauthorizedError("Refresh token has been revoked")
+        if not self.refresh_token_repo.is_valid(stored):
             raise UnauthorizedError("Refresh token is invalid or expired")
         if str(stored.user_id) != str(user_id):
             raise UnauthorizedError("Refresh token does not belong to this user")
@@ -128,6 +139,29 @@ class AuthService:
 
         await self.refresh_token_repo.revoke(stored)
         await self.session.commit()
+
+    async def _resolve_login_tenant_id(
+        self,
+        user_id: UUID,
+        tenant_id_raw: str | None,
+    ) -> UUID:
+        if tenant_id_raw:
+            tenant_id = UUID(str(tenant_id_raw))
+            await self._ensure_tenant_membership(user_id, tenant_id)
+            return tenant_id
+
+        membership = await self.tenant_user_repo.get_primary_for_user(user_id)
+        if membership is None:
+            raise ForbiddenError("User is not assigned to any tenant")
+        return membership.tenant_id
+
+    async def _ensure_tenant_membership(self, user_id: UUID, tenant_id: UUID) -> None:
+        membership = await self.tenant_user_repo.get_membership_for_user_and_tenant(
+            user_id,
+            tenant_id,
+        )
+        if membership is None:
+            raise ForbiddenError("User does not have access to this tenant")
 
     async def _issue_tokens(self, user: User, tenant_id: UUID) -> AuthTokens:
         expires_delta = timedelta(minutes=self.settings.access_token_expire_minutes)

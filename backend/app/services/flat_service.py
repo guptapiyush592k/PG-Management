@@ -2,10 +2,11 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ValidationError
 from app.models.flat import Flat
 from app.models.tenant_user import TenantUserRole
 from app.repositories.flat_repository import FlatRepository
+from app.repositories.room_repository import RoomRepository
 from app.schemas.common import PaginatedResponse
 from app.schemas.flat import FlatCreate, FlatListParams, FlatResponse, FlatUpdate
 from app.services.permissions import require_permission
@@ -19,11 +20,13 @@ class FlatService:
         role: TenantUserRole,
         *,
         flat_repo: FlatRepository | None = None,
+        room_repo: RoomRepository | None = None,
     ) -> None:
         self.session = session
         self.tenant_id = tenant_id
         self.role = role
         self.flat_repo = flat_repo or FlatRepository(session, tenant_id)
+        self.room_repo = room_repo or RoomRepository(session, tenant_id)
 
     async def create_flat(self, data: FlatCreate) -> FlatResponse:
         require_permission(self.role, "manage_flats")
@@ -60,18 +63,25 @@ class FlatService:
     async def update_flat(self, flat_id: UUID, data: FlatUpdate) -> FlatResponse:
         require_permission(self.role, "manage_flats")
         flat = await self._get_flat_or_404(flat_id)
-        updated = await self.flat_repo.update(
-            flat,
-            name=data.name,
-            address=data.address,
-            is_active=data.is_active,
-        )
+
+        if "name" in data.model_fields_set and data.name is not None:
+            flat.name = data.name.strip()
+        if "address" in data.model_fields_set and data.address is not None:
+            flat.address = data.address.strip()
+        if "is_active" in data.model_fields_set and data.is_active is not None:
+            flat.is_active = data.is_active
+
+        await self.session.flush()
+        await self.session.refresh(flat)
         await self.session.commit()
-        return self._to_response(updated)
+        return self._to_response(flat)
 
     async def delete_flat(self, flat_id: UUID) -> None:
         require_permission(self.role, "manage_flats")
         flat = await self._get_flat_or_404(flat_id)
+        room_count = await self.room_repo.count(flat_id=flat_id)
+        if room_count > 0:
+            raise ValidationError("Cannot delete a flat that still has rooms")
         await self.flat_repo.delete(flat)
         await self.session.commit()
 

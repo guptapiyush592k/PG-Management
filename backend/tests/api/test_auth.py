@@ -31,7 +31,7 @@ async def test_signup_route_returns_tokens(
         json={
             "full_name": "New User",
             "email": "new@example.com",
-            "password": "password123",
+            "password": "Password123",
         },
     )
 
@@ -58,7 +58,7 @@ async def test_login_route_returns_tokens(
 
     response = await client.post(
         "/auth/login",
-        json={"email": "owner@example.com", "password": "password123"},
+        json={"email": "owner@example.com", "password": "Password123"},
     )
 
     assert response.status_code == 200

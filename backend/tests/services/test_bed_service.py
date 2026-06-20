@@ -61,6 +61,7 @@ def bed_service(tenant_id: uuid.UUID) -> BedService:
         TenantUserRole.OWNER,
         bed_repo=AsyncMock(),
         room_repo=AsyncMock(),
+        booking_repo=AsyncMock(),
     )
 
 
@@ -150,6 +151,7 @@ async def test_delete_bed(
     bed: Bed,
 ) -> None:
     bed_service.bed_repo.get_by_id.return_value = bed
+    bed_service.booking_repo.get_active_by_bed_id.return_value = None
 
     await bed_service.delete_bed(bed.id)
 

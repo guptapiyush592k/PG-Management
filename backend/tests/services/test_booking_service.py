@@ -81,7 +81,7 @@ async def test_create_booking(
 ) -> None:
     resident = type("Resident", (), {"is_active": True})()
     booking_service.resident_repo.get_by_id.return_value = resident
-    booking_service.bed_repo.get_by_id.return_value = bed
+    booking_service.bed_repo.get_by_id_for_update.return_value = bed
     booking_service.booking_repo.get_active_by_bed_id.return_value = None
     booking_service.booking_repo.create.return_value = booking
     booking_service.bed_repo.update_status.return_value = bed
@@ -108,7 +108,7 @@ async def test_create_booking_rejects_inactive_resident(
 ) -> None:
     resident = type("Resident", (), {"is_active": False})()
     booking_service.resident_repo.get_by_id.return_value = resident
-    booking_service.bed_repo.get_by_id.return_value = bed
+    booking_service.bed_repo.get_by_id_for_update.return_value = bed
 
     with pytest.raises(ValidationError):
         await booking_service.create_booking(
@@ -130,7 +130,7 @@ async def test_create_booking_rejects_occupied_bed(
     resident = type("Resident", (), {"is_active": True})()
     bed.status = BedStatus.OCCUPIED
     booking_service.resident_repo.get_by_id.return_value = resident
-    booking_service.bed_repo.get_by_id.return_value = bed
+    booking_service.bed_repo.get_by_id_for_update.return_value = bed
 
     with pytest.raises(ConflictError):
         await booking_service.create_booking(
@@ -151,7 +151,7 @@ async def test_create_booking_rejects_active_booking_on_bed(
 ) -> None:
     resident = type("Resident", (), {"is_active": True})()
     booking_service.resident_repo.get_by_id.return_value = resident
-    booking_service.bed_repo.get_by_id.return_value = bed
+    booking_service.bed_repo.get_by_id_for_update.return_value = bed
     booking_service.booking_repo.get_active_by_bed_id.return_value = booking
 
     with pytest.raises(ConflictError):

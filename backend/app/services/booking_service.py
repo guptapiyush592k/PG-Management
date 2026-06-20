@@ -39,7 +39,9 @@ class BookingService:
         resident = await self._get_resident_or_404(data.resident_id)
         if not resident.is_active:
             raise ValidationError("Resident is not active")
-        bed = await self._get_bed_or_404(data.bed_id)
+        bed = await self.bed_repo.get_by_id_for_update(data.bed_id)
+        if bed is None:
+            raise NotFoundError("Bed not found")
         await self._ensure_bed_available(bed)
 
         booking = await self.booking_repo.create(
@@ -49,6 +51,10 @@ class BookingService:
         )
         await self.bed_repo.update_status(bed, BedStatus.OCCUPIED)
         await self.session.commit()
+        return self._to_response(booking)
+
+    async def get_booking(self, booking_id: UUID) -> BookingResponse:
+        booking = await self._get_booking_or_404(booking_id)
         return self._to_response(booking)
 
     async def list_bookings(

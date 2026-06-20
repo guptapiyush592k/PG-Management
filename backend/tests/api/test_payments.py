@@ -140,7 +140,7 @@ async def test_update_payment_route(
         new_callable=AsyncMock,
         return_value=_authorized_context(tenant_id, TenantUserRole.MANAGER),
     ):
-        response = await client.put(
+        response = await client.patch(
             f"/api/v1/payments/{payment_response.id}",
             json={
                 "resident_id": payment_response.resident_id,

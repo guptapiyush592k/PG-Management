@@ -55,6 +55,12 @@ class BedRepository(BaseRepository[Bed]):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_by_id_for_update(self, bed_id: UUID) -> Bed | None:
+        stmt = select(Bed).where(Bed.id == bed_id).with_for_update()
+        stmt = self._apply_tenant_filter(stmt)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_room_and_bed_label(
         self,
         room_id: UUID,

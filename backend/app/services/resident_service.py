@@ -2,7 +2,8 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
+from app.core.pii import mask_aadhaar
 from app.models.resident import Resident
 from app.models.tenant_user import TenantUserRole
 from app.repositories.resident_repository import ResidentRepository
@@ -79,21 +80,29 @@ class ResidentService:
     ) -> ResidentResponse:
         require_permission(self.role, "manage_residents")
         resident = await self._get_resident_or_404(resident_id)
-        await self._ensure_unique_phone(data.phone, exclude_id=resident_id)
 
-        updated = await self.resident_repo.update(
-            resident,
-            name=data.name,
-            phone=data.phone,
-            email=str(data.email) if data.email else None,
-            aadhaar=data.aadhaar,
-            joining_date=data.joining_date,
-            deposit=data.deposit,
-            notes=data.notes,
-            is_active=data.is_active,
-        )
+        if "phone" in data.model_fields_set and data.phone is not None:
+            await self._ensure_unique_phone(data.phone, exclude_id=resident_id)
+            resident.phone = data.phone
+        if "name" in data.model_fields_set and data.name is not None:
+            resident.name = data.name
+        if "email" in data.model_fields_set:
+            resident.email = str(data.email) if data.email else None
+        if "aadhaar" in data.model_fields_set:
+            resident.aadhaar = data.aadhaar
+        if "joining_date" in data.model_fields_set and data.joining_date is not None:
+            resident.joining_date = data.joining_date
+        if "deposit" in data.model_fields_set and data.deposit is not None:
+            resident.deposit = data.deposit
+        if "notes" in data.model_fields_set:
+            resident.notes = data.notes
+        if "is_active" in data.model_fields_set and data.is_active is not None:
+            resident.is_active = data.is_active
+
+        await self.session.flush()
+        await self.session.refresh(resident)
         await self.session.commit()
-        return self._to_response(updated)
+        return self._to_response(resident)
 
     async def delete_resident(self, resident_id: UUID) -> None:
         require_permission(self.role, "manage_residents")
@@ -124,7 +133,7 @@ class ResidentService:
             name=resident.name,
             phone=resident.phone,
             email=resident.email,
-            aadhaar=resident.aadhaar,
+            aadhaar=mask_aadhaar(resident.aadhaar),
             joining_date=resident.joining_date,
             deposit=resident.deposit,
             notes=resident.notes,

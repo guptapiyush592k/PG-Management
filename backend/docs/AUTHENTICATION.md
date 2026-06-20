@@ -10,26 +10,40 @@ Authentication uses **JWT access tokens** and **refresh tokens**. Passwords are 
 | POST | `/auth/login` | Log in with email and password |
 | POST | `/auth/refresh` | Get a new token pair using a refresh token |
 | POST | `/auth/logout` | Revoke a refresh token |
+| POST | `/auth/switch-tenant` | Issue a new token pair for another PG business |
 
-All auth routes are **public** — no `Authorization` header required.
+All auth routes are **public** (no `X-Tenant-ID` header). `/auth/switch-tenant` requires a valid Bearer access token.
+
+Auth routes are **rate-limited** per IP (see environment variables below).
 
 ## Signup flow
 
 1. Client sends `full_name`, `email`, `password`
-2. Server checks email is not already registered
-3. Server creates the user with a bcrypt-hashed password
-4. Server gets or creates the **demo tenant** (slug from `DEMO_TENANT_SLUG`, default `"demo"`)
-5. Server links the user to the demo tenant as **Owner** with `is_primary=true`
-6. Server issues access + refresh tokens and returns them
+2. Server validates password strength (8+ chars, upper, lower, digit)
+3. Server checks email is not already registered
+4. Server creates the user with a bcrypt-hashed password
+5. Server gets or creates the **demo tenant** (slug from `DEMO_TENANT_SLUG`, default `"demo"`)
+6. Server links the user to the demo tenant as **Manager** with `is_primary=true`
+7. Server issues access + refresh tokens and returns them
 
 New users always start on the demo PG business. Production tenant onboarding will be added later.
 
 ## Login flow
 
-1. Client sends `email`, `password`
+1. Client sends `email`, `password`, and optionally `tenant_id`
 2. Server verifies credentials and user is active
-3. Server loads the user's **primary** tenant membership (`is_primary=true`)
-4. Server issues a new token pair for that tenant
+3. Server resolves tenant:
+   - If `tenant_id` is provided, verifies membership for that tenant
+   - Otherwise loads the user's **primary** tenant membership (`is_primary=true`)
+4. Server issues a new token pair for the resolved tenant
+
+## Switch tenant flow
+
+1. Client sends `Authorization: Bearer <access_token>` and `{ "tenant_id": "<uuid>" }`
+2. Server verifies the user belongs to that tenant
+3. Server issues a new token pair scoped to the requested tenant
+
+Use this when a user manages multiple PG businesses and needs a fresh access token after changing `X-Tenant-ID`.
 
 ## Token response shape
 
@@ -73,6 +87,7 @@ Configured via `ACCESS_TOKEN_EXPIRE_MINUTES` (default 60).
 - Lifetime configured via `REFRESH_TOKEN_EXPIRE_DAYS` (default 7)
 - On refresh: old token is revoked, new pair is issued (rotation)
 - On logout: refresh token is revoked
+- **Reuse detection:** if a revoked refresh token is presented again, all refresh tokens for that user are revoked
 
 ## Full auth sequence
 
@@ -87,7 +102,11 @@ sequenceDiagram
     Auth-->>Client: access_token + refresh_token
 
     Client->>Auth: POST /auth/login
-    Auth->>DB: Verify password + primary membership
+    Auth->>DB: Verify password + membership
+    Auth-->>Client: New token pair
+
+    Client->>Auth: POST /auth/switch-tenant
+    Auth->>DB: Verify membership for tenant_id
     Auth-->>Client: New token pair
 
     Client->>Auth: POST /auth/refresh
@@ -117,12 +136,23 @@ Content-Type: application/json
 { "refresh_token": "eyJ..." }
 ```
 
+## Switch tenant request
+
+```http
+POST /auth/switch-tenant
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{ "tenant_id": "550e8400-e29b-41d4-a716-446655440000" }
+```
+
 ## Security rules
 
 - Never log passwords or tokens
 - Never store plain passwords — use `hash_password()` / `verify_password()` from [`app/core/security.py`](../app/core/security.py)
 - Invalid or expired tokens return `401` with `error_code: "unauthorized"`
 - Inactive users return `403` with `error_code: "forbidden"`
+- Signup passwords must include uppercase, lowercase, and a digit
 
 ## Environment variables
 
@@ -133,5 +163,7 @@ Content-Type: application/json
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Yes | — | Access token TTL |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | No | `7` | Refresh token TTL |
 | `DEMO_TENANT_SLUG` | No | `demo` | Demo tenant slug for signup |
+| `AUTH_RATE_LIMIT_MAX_REQUESTS` | No | `20` | Max auth requests per IP per window |
+| `AUTH_RATE_LIMIT_WINDOW_SECONDS` | No | `60` | Auth rate-limit window |
 
 See [AUTHORIZATION_EXAMPLES.md](AUTHORIZATION_EXAMPLES.md) for how to use tokens on protected routes.

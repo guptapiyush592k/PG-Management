@@ -37,7 +37,7 @@ def user() -> User:
         id=uuid.uuid4(),
         email="owner@example.com",
         full_name="Owner User",
-        hashed_password=hash_password("password123"),
+        hashed_password=hash_password("Password123"),
         is_active=True,
     )
 
@@ -89,7 +89,7 @@ async def test_signup_creates_user_and_assigns_demo_tenant(
     auth_service.refresh_token_repo.create_for_jwt.return_value = MagicMock()
 
     result = await auth_service.signup(
-        SignupRequest(full_name="New User", email="new@example.com", password="password123")
+        SignupRequest(full_name="New User", email="new@example.com", password="Password123")
     )
 
     assert result.user.email == "new@example.com"
@@ -106,7 +106,7 @@ async def test_signup_rejects_duplicate_email(auth_service: AuthService, user: U
 
     with pytest.raises(ConflictError):
         await auth_service.signup(
-            SignupRequest(full_name="Dup", email="owner@example.com", password="password123")
+            SignupRequest(full_name="Dup", email="owner@example.com", password="Password123")
         )
 
 
@@ -121,7 +121,7 @@ async def test_login_returns_tokens(
     auth_service.refresh_token_repo.create_for_jwt.return_value = MagicMock()
 
     result = await auth_service.login(
-        LoginRequest(email="owner@example.com", password="password123")
+        LoginRequest(email="owner@example.com", password="Password123")
     )
 
     assert result.access_token
@@ -144,7 +144,7 @@ async def test_login_rejects_user_without_tenant(auth_service: AuthService, user
 
     with pytest.raises(ForbiddenError):
         await auth_service.login(
-            LoginRequest(email="owner@example.com", password="password123")
+            LoginRequest(email="owner@example.com", password="Password123")
         )
 
 

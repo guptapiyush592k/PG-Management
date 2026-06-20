@@ -2,6 +2,8 @@ import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
+from botocore.exceptions import ClientError
+
 from app.core.settings import Settings
 from app.storage.base import PresignedUpload, StorageProvider
 
@@ -84,3 +86,21 @@ class S3StorageProvider(StorageProvider):
             Key=storage_key,
         )
         logger.info("Deleted S3 object: %s", storage_key)
+
+    async def get_object_metadata(self, storage_key: str) -> tuple[bool, int | None]:
+        client = self._get_client()
+
+        def _head() -> tuple[bool, int | None]:
+            try:
+                response = client.head_object(
+                    Bucket=self._settings.s3_bucket_name,
+                    Key=storage_key,
+                )
+            except ClientError as exc:
+                error_code = exc.response.get("Error", {}).get("Code", "")
+                if error_code in {"404", "NoSuchKey", "NotFound"}:
+                    return False, None
+                raise
+            return True, int(response.get("ContentLength", 0))
+
+        return await asyncio.to_thread(_head)

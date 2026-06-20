@@ -78,7 +78,8 @@ Domain repositories (flats, rooms, beds, residents) are constructed with the aut
 | Type | `X-Tenant-ID` | Tenant source |
 |------|---------------|---------------|
 | Public (`/auth/*`, `/health`) | Not needed | — |
-| JWT-only (`GET /me/context`) | Not used | JWT `tenant_id` claim |
+| JWT-only (`GET /me/context`) | Optional | Header when provided (membership verified), else JWT `tenant_id` claim |
+| Signed file (`/files/*/content`) | Not needed | Resolved from `stored_files` row after HMAC validation |
 | Protected (`/api/v1/*`) | Required | Header, verified against `tenant_users` |
 
 Route classification lives in [`app/core/paths.py`](../app/core/paths.py).
@@ -91,7 +92,8 @@ On signup, users are assigned to the demo tenant (`DEMO_TENANT_SLUG`, default `"
 
 1. After login, store `tenant_id` from the token response
 2. Send `X-Tenant-ID: <tenant_id>` on every protected API call
-3. Use `GET /me/context` to load user info, tenant branding, and permissions
-4. Do not send `tenant_id` in create/update request bodies for authorization
+3. Use `GET /me/context` to load user info, tenant branding, and permissions (optionally pass `X-Tenant-ID` for the active PG business)
+4. Call `POST /auth/switch-tenant` when changing PG businesses to refresh the access token
+5. Do not send `tenant_id` in create/update request bodies for authorization
 
 See [AUTHORIZATION_EXAMPLES.md](AUTHORIZATION_EXAMPLES.md) for HTTP examples and [DATABASE_ERD.md](DATABASE_ERD.md) for the full schema.

@@ -36,3 +36,7 @@ class StorageProvider(ABC):
     @abstractmethod
     async def delete_object(self, storage_key: str) -> None:
         """Remove the object from storage."""
+
+    async def get_object_metadata(self, storage_key: str) -> tuple[bool, int | None]:
+        """Return whether the object exists and its size in bytes, if known."""
+        raise NotImplementedError(f"{type(self).__name__} does not support metadata lookups")

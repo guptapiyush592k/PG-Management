@@ -67,7 +67,15 @@ async def list_payments(
     return await service.list_payments(params)
 
 
-@router.put("/{payment_id}", response_model=PaymentResponse)
+@router.get("/{payment_id}", response_model=PaymentResponse)
+async def get_payment(
+    payment_id: UUID,
+    service: PaymentServiceDep,
+) -> PaymentResponse:
+    return await service.get_payment(payment_id)
+
+
+@router.patch("/{payment_id}", response_model=PaymentResponse)
 async def update_payment(
     payment_id: UUID,
     data: PaymentUpdate,

@@ -60,6 +60,18 @@ class TenantAuthorizationMiddleware(BaseHTTPMiddleware):
                     access_token=access_token,
                     tenant_id_header=tenant_id_header,
                 )
+                request.state.db_session = session
+                request.state.user = context.user
+                request.state.tenant = context.tenant
+                request.state.tenant_membership = context.membership
+                request.state.user_id = context.user_id
+                request.state.tenant_id = context.tenant_id
+
+                set_current_tenant_id(context.tenant_id)
+                try:
+                    return await call_next(request)
+                finally:
+                    set_current_tenant_id(None)
         except AppException as exc:
             logger.warning(
                 "Tenant authorization failed path=%s status=%s detail=%s",
@@ -68,15 +80,3 @@ class TenantAuthorizationMiddleware(BaseHTTPMiddleware):
                 exc.detail,
             )
             return _error_response(exc)
-
-        request.state.user = context.user
-        request.state.tenant = context.tenant
-        request.state.tenant_membership = context.membership
-        request.state.user_id = context.user_id
-        request.state.tenant_id = context.tenant_id
-
-        set_current_tenant_id(context.tenant_id)
-        try:
-            return await call_next(request)
-        finally:
-            set_current_tenant_id(None)

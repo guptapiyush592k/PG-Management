@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     local_storage_path: str = "./uploads"
     local_storage_public_base_url: str = "http://localhost:8000"
     storage_presigned_url_expires_seconds: int = Field(default=3600, ge=60, le=86400)
+    storage_signing_key: str | None = Field(
+        default=None,
+        description="HMAC key for local presigned file URLs; defaults to JWT_SECRET_KEY",
+    )
+    max_upload_bytes: int = Field(default=10_485_760, ge=1, le=104_857_600)
+
+    auth_rate_limit_max_requests: int = Field(default=20, ge=1)
+    auth_rate_limit_window_seconds: int = Field(default=60, ge=1)
 
     s3_bucket_name: str | None = None
     s3_region: str | None = None
@@ -96,6 +104,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def effective_storage_signing_key(self) -> str:
+        return self.storage_signing_key or self.jwt_secret_key
 
     @model_validator(mode="after")
     def validate_storage_settings(self) -> "Settings":
