@@ -3,8 +3,10 @@ import hashlib
 from typing import Any
 from uuid import UUID
 
-import bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
+from pwdlib import PasswordHash
+from pwdlib.hashers.bcrypt import BcryptHasher
 
 from app.core.exceptions import UnauthorizedError
 from app.core.settings import Settings, get_settings
@@ -12,16 +14,15 @@ from app.core.settings import Settings, get_settings
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
 
+_password_hasher = PasswordHash((BcryptHasher(),))
+
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return _password_hasher.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8"),
-    )
+    return _password_hasher.verify(plain_password, hashed_password)
 
 
 def hash_refresh_token(token: str) -> str:
@@ -99,7 +100,7 @@ def decode_token(
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
         )
-    except JWTError as exc:
+    except PyJWTError as exc:
         raise UnauthorizedError("Invalid or expired token") from exc
 
     if payload.get("type") != expected_type:

@@ -1,6 +1,6 @@
 # Authentication
 
-Authentication uses **JWT access tokens** and **refresh tokens**. Passwords are hashed with bcrypt and never stored in plain text.
+Authentication uses **JWT access tokens** (via [PyJWT](https://pyjwt.readthedocs.io/)) and **refresh tokens**. Passwords are hashed with [pwdlib](https://frankie567.github.io/pwdlib/) (bcrypt) and never stored in plain text.
 
 ## Endpoints
 
@@ -21,7 +21,7 @@ Auth routes are **rate-limited** per IP (see environment variables below).
 1. Client sends `full_name`, `email`, `password`
 2. Server validates password strength (8+ chars, upper, lower, digit)
 3. Server checks email is not already registered
-4. Server creates the user with a bcrypt-hashed password
+4. Server creates the user with a pwdlib-hashed password (bcrypt)
 5. Server gets or creates the **demo tenant** (slug from `DEMO_TENANT_SLUG`, default `"demo"`)
 6. Server links the user to the demo tenant as **Manager** with `is_primary=true`
 7. Server issues access + refresh tokens and returns them
