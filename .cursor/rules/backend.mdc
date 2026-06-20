@@ -1,0 +1,405 @@
+---
+alwaysApply: true
+---
+# Backend Development Rules
+
+## Tech Stack
+
+Always use:
+
+* Python 3.12
+* FastAPI
+* PostgreSQL
+* SQLAlchemy 2.0
+* Alembic
+* Pydantic v2
+* JWT Authentication
+* Async programming
+* Repository Pattern
+* Service Layer
+* Dependency Injection
+* Clean Architecture
+
+Never introduce another framework without explicit instruction.
+
+---
+
+# General Principles
+
+* Write production-ready code.
+* Prioritize readability over clever implementations.
+* Avoid unnecessary abstractions.
+* Keep functions small and focused.
+* Follow SOLID principles.
+* Prefer composition over inheritance.
+* Avoid duplicate code.
+
+---
+
+# Project Architecture
+
+Always follow this flow:
+
+Router
+→ Service
+→ Repository
+→ Database
+
+Rules:
+
+* Routers only handle HTTP concerns.
+* Services contain business logic.
+* Repositories contain database queries only.
+* Models define ORM entities.
+* Schemas define request/response models.
+* Dependencies handle authentication, authorization, database sessions and shared utilities.
+
+Never bypass layers.
+
+---
+
+# Router Rules
+
+Routers must:
+
+* Validate request data.
+* Call exactly one service.
+* Return response schemas.
+* Raise HTTP exceptions only for HTTP concerns.
+* Never access SQLAlchemy models directly.
+* Never execute SQL queries.
+* Never contain business logic.
+
+---
+
+# Service Rules
+
+Services must:
+
+* Contain all business logic.
+* Validate business rules.
+* Call repositories.
+* Handle transactions when needed.
+* Raise domain-specific exceptions.
+* Never know HTTP request details.
+
+---
+
+# Repository Rules
+
+Repositories must:
+
+* Contain only database operations.
+* Use SQLAlchemy 2.0 style.
+* Use select(), update(), delete().
+* Never contain business logic.
+* Never return raw SQL.
+* Never commit unless explicitly required by the service layer.
+
+---
+
+# Database Rules
+
+* Use UUID primary keys.
+* Use PostgreSQL UUID type.
+* Use timezone-aware timestamps.
+* Use server defaults where appropriate.
+* Add indexes for frequently searched columns.
+* Use foreign keys.
+* Avoid nullable fields unless required.
+
+Every entity should include:
+
+* id
+* created_at
+* updated_at
+
+Soft delete should only be implemented when explicitly required.
+
+---
+
+# Multi-Tenancy
+
+This application is multi-tenant.
+
+Every tenant-owned resource must include tenant_id.
+
+Always validate tenant ownership before:
+
+* Read
+* Update
+* Delete
+
+Never allow data leakage across tenants.
+
+Every protected endpoint must verify tenant access.
+
+Never trust client-provided tenant information without validation.
+
+---
+
+# Authentication
+
+Authentication uses JWT.
+
+Protected routes must:
+
+* Validate JWT
+* Validate token expiry
+* Validate tenant access
+* Load authenticated user
+
+Never store plain passwords.
+
+Always hash passwords.
+
+Always verify passwords securely.
+
+Access tokens and refresh tokens must follow the existing authentication implementation.
+
+---
+
+# Authorization
+
+Use role-based authorization.
+
+Roles include:
+
+* Super Admin
+* Owner
+* Manager
+
+Check permissions in the service layer unless middleware already enforces them.
+
+---
+
+# Validation
+
+Always validate:
+
+* Input data
+* Foreign keys
+* Business constraints
+* Ownership
+* Tenant access
+
+Never trust frontend validation.
+
+---
+
+# API Standards
+
+Follow REST principles.
+
+Use:
+
+GET
+
+POST
+
+PATCH
+
+DELETE
+
+Avoid PUT unless replacing an entire resource.
+
+Use pagination for list endpoints.
+
+Use filtering where appropriate.
+
+Use sorting where useful.
+
+---
+
+# Response Format
+
+Use Pydantic response schemas.
+
+Never return ORM objects directly.
+
+Never expose internal fields.
+
+Return meaningful error messages.
+
+---
+
+# Error Handling
+
+Create custom exceptions for business logic.
+
+Use global exception handlers.
+
+Never expose stack traces.
+
+Log unexpected exceptions.
+
+Return proper HTTP status codes.
+
+---
+
+# SQLAlchemy
+
+Use:
+
+select()
+
+joinedload()
+
+selectinload()
+
+relationship()
+
+Avoid N+1 queries.
+
+Avoid unnecessary commits.
+
+Use async sessions.
+
+---
+
+# Performance
+
+Prefer database joins over Python loops.
+
+Select only required columns.
+
+Use pagination.
+
+Avoid loading unnecessary relationships.
+
+Optimize expensive queries.
+
+---
+
+# Logging
+
+Use Python logging.
+
+Never use print().
+
+Log:
+
+* Authentication failures
+* Authorization failures
+* External API failures
+* Unexpected exceptions
+
+Do not log passwords, tokens or sensitive information.
+
+---
+
+# Configuration
+
+Never hardcode:
+
+* URLs
+* Secrets
+* Passwords
+* Tokens
+* API keys
+* Database credentials
+
+Everything must come from environment variables.
+
+---
+
+# Migrations
+
+Always use Alembic.
+
+Never modify old migrations.
+
+Create a new migration for every schema change.
+
+---
+
+# Testing
+
+Whenever creating a new feature:
+
+* Add unit tests where appropriate.
+* Keep business logic testable.
+* Mock external services.
+
+---
+
+# Documentation
+
+Before making assumptions:
+
+Read relevant documentation from:
+
+docs/
+
+Examples:
+
+* DATABASE_ERD.md
+* ARCHITECTURE.md
+* AUTHENTICATION.md
+* TENANCY.md
+* API_CONVENTIONS.md
+
+Treat these documents as the source of truth.
+
+If implementation and documentation conflict, mention the conflict instead of silently changing behavior.
+with every new implementation or fix or any update, update docs simultaneously. there should not be any scenerio where code and documenation are different 
+
+---
+
+# Code Style
+
+Use:
+
+* Type hints everywhere.
+* Meaningful variable names.
+* Docstrings for public functions.
+* Constants instead of magic numbers.
+* Enums instead of string literals where appropriate.
+
+Keep files organized.
+
+Avoid functions longer than ~50 lines unless justified.
+
+---
+
+# Dependencies
+
+Prefer built-in libraries.
+
+Do not introduce new dependencies unless they provide significant value.
+
+---
+
+# Before Generating Code
+
+Always:
+
+1. Inspect existing project structure.
+2. Reuse existing patterns.
+3. Follow existing naming conventions.
+4. Minimize changes to unrelated files.
+5. Preserve backward compatibility unless instructed otherwise.
+
+Do not rewrite working code unless explicitly requested.
+
+---
+
+# When Debugging
+
+Before suggesting changes:
+
+1. Read the relevant files.
+2. Trace  therequest flow.
+3. Identify the root cause.
+4. Explain why the issue occurs.
+5. Suggest the smallest safe fix.
+
+Avoid speculative fixes.
+
+---
+
+# Final Rule
+
+Generate code that another senior backend engineer would approve in a production code review.
+
+Prioritize correctness, maintainability, security and consistency over speed.
