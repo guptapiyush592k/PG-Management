@@ -122,7 +122,7 @@ pytest
 
 See [docs/API_CONVENTIONS.md](docs/API_CONVENTIONS.md) for the full endpoint catalog.
 
-**Not yet implemented:** Bookings and rent payments (models exist, no API routes).
+**Not yet implemented:** Bookings (model exists, no API routes).
 
 ## Project Structure
 

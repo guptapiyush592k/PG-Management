@@ -57,6 +57,7 @@ Response shape:
 | Rooms | `search`, `flat_id` |
 | Beds | `search`, `room_id`, `status` (`vacant`, `occupied`, `maintenance`) |
 | Residents | `search`, `is_active` |
+| Payments | `search`, `resident_id`, `status` (`paid`, `pending`, `partial`, `overdue`) |
 
 ## Error responses
 
@@ -143,6 +144,33 @@ All errors return:
 | PATCH | `/api/v1/residents/{resident_id}` | `manage_residents` | Update |
 | DELETE | `/api/v1/residents/{resident_id}` | `manage_residents` | 204 |
 
+### Payments (protected)
+
+| Method | Path | Permission | Notes |
+|--------|------|------------|-------|
+| POST | `/api/v1/payments` | `manage_payments` | Create rent payment record |
+| GET | `/api/v1/payments` | — | List (paginated); filter by `resident_id`, `status` |
+| PUT | `/api/v1/payments/{payment_id}` | `manage_payments` | Full update |
+| GET | `/api/v1/payments/summary` | — | Aggregated totals by status |
+
+Payment summary response:
+
+```json
+{
+  "total_collected": "19000.00",
+  "pending_amount": "14500.00",
+  "overdue_amount": "3000.00",
+  "counts": {
+    "paid": 2,
+    "pending": 1,
+    "partial": 1,
+    "overdue": 1
+  }
+}
+```
+
+`pending_amount` includes both `pending` and `partial` statuses.
+
 ### Examples (protected)
 
 | Method | Path | Description |
@@ -154,7 +182,6 @@ All errors return:
 | Resource | Status |
 |----------|--------|
 | Bookings | Model + migration exist; no API routes |
-| Rent payments | Model + migration exist; no API routes |
 
 ## UUID identifiers
 

@@ -189,9 +189,8 @@ Tenant (PG Business)
 | Table | API routes |
 |-------|------------|
 | `tenants`, `users`, `tenant_users` | Via auth and `/me/context` |
-| `flats`, `rooms`, `beds`, `residents` | Full CRUD at `/api/v1/*` |
+| `flats`, `rooms`, `beds`, `residents`, `rent_payments` | Full CRUD at `/api/v1/*` (payments: create, list, update, summary) |
 | `bookings` | **Not implemented** — model only |
-| `rent_payments` | **Not implemented** — model only |
 | `refresh_tokens` | Internal — used by auth service |
 
 ## Indexes & Constraints
