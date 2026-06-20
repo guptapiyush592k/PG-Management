@@ -3,29 +3,19 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import CurrentMembership, CurrentTenantId, DbSession
-from app.core.exceptions import ForbiddenError
+from app.api.deps import AuthorizedContextDep, DbSession
 from app.schemas.common import PaginatedResponse
 from app.schemas.room import RoomCreate, RoomListParams, RoomResponse, RoomUpdate
-from app.schemas.tenant_context import resolve_permissions
 from app.services.room_service import RoomService
 
 router = APIRouter(tags=["rooms"])
 
 
-def get_room_service(db: DbSession, tenant_id: CurrentTenantId) -> RoomService:
-    return RoomService(db, tenant_id)
+def get_room_service(auth: AuthorizedContextDep, db: DbSession) -> RoomService:
+    return RoomService(db, auth.tenant_id, auth.membership.role)
 
 
 RoomServiceDep = Annotated[RoomService, Depends(get_room_service)]
-
-
-async def require_manage_rooms(membership: CurrentMembership) -> None:
-    if not resolve_permissions(membership.role).manage_rooms:
-        raise ForbiddenError("Insufficient permissions to manage rooms")
-
-
-ManageRoomsDep = Annotated[None, Depends(require_manage_rooms)]
 
 
 def get_list_params(
@@ -43,7 +33,6 @@ RoomListParamsDep = Annotated[RoomListParams, Depends(get_list_params)]
 @router.post("", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
 async def create_room(
     data: RoomCreate,
-    _permission: ManageRoomsDep,
     service: RoomServiceDep,
 ) -> RoomResponse:
     return await service.create_room(data)
@@ -65,11 +54,10 @@ async def get_room(
     return await service.get_room(room_id)
 
 
-@router.put("/{room_id}", response_model=RoomResponse)
+@router.patch("/{room_id}", response_model=RoomResponse)
 async def update_room(
     room_id: UUID,
     data: RoomUpdate,
-    _permission: ManageRoomsDep,
     service: RoomServiceDep,
 ) -> RoomResponse:
     return await service.update_room(room_id, data)
@@ -78,7 +66,6 @@ async def update_room(
 @router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_room(
     room_id: UUID,
-    _permission: ManageRoomsDep,
     service: RoomServiceDep,
 ) -> None:
     await service.delete_room(room_id)

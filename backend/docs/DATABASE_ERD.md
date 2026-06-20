@@ -2,7 +2,7 @@
 
 ## Overview
 
-The schema uses a **shared PostgreSQL database** with row-level multi-tenancy. Every business table (except `users`) is scoped to a `tenants` row representing a **PG business**.
+The schema uses a **shared PostgreSQL database** with row-level multi-tenancy. Every business table (except `users` and `refresh_tokens`) is scoped to a `tenants` row representing a **PG business**.
 
 Platform users (`users`) can belong to **multiple PG businesses** through `tenant_users`, supporting **multiple owners per tenant**.
 
@@ -12,6 +12,7 @@ Platform users (`users`) can belong to **multiple PG businesses** through `tenan
 erDiagram
     tenants ||--o{ tenant_users : has
     users ||--o{ tenant_users : belongs_to
+    users ||--o{ refresh_tokens : has
     tenants ||--o{ flats : owns
     tenants ||--o{ residents : manages
     tenants ||--o{ bookings : tracks
@@ -32,6 +33,11 @@ erDiagram
         boolean is_active
         string phone
         text address
+        string logo_url
+        string primary_color
+        string secondary_color
+        boolean is_demo
+        enum subscription_status
         timestamptz created_at
         timestamptz updated_at
     }
@@ -52,6 +58,16 @@ erDiagram
         uuid user_id FK
         enum role
         boolean is_primary
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        string token_hash UK
+        timestamptz expires_at
+        timestamptz revoked_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -133,7 +149,7 @@ erDiagram
 
 ```
 Tenant (PG Business)
-├── TenantUser → User (owners / staff)
+├── TenantUser → User (super_admin / owner / manager)
 ├── Flat (property)
 │   └── Room
 │       └── Bed
@@ -143,12 +159,23 @@ Tenant (PG Business)
 └── Booking / RentPayment (tenant-scoped)
 ```
 
+## Roles
+
+`tenant_users.role` values:
+
+| Value | Role |
+|-------|------|
+| `super_admin` | Super Admin — full access (assign manually for now) |
+| `owner` | Owner — full access |
+| `manager` | Manager — limited write access |
+
 ## Key Relationships
 
 | From | To | Cardinality | Notes |
 |------|-----|-------------|-------|
-| `tenants` | `tenant_users` | 1:N | Multiple owners/staff per PG business |
+| `tenants` | `tenant_users` | 1:N | Multiple members per PG business |
 | `users` | `tenant_users` | 1:N | One user can manage multiple PG businesses |
+| `users` | `refresh_tokens` | 1:N | Hashed refresh tokens for auth |
 | `tenants` | `flats` | 1:N | A PG business can operate multiple properties |
 | `flats` | `rooms` | 1:N | Unique `(flat_id, room_number)` |
 | `rooms` | `beds` | 1:N | Unique `(room_id, bed_label)` |
@@ -156,6 +183,16 @@ Tenant (PG Business)
 | `beds` | `bookings` | 1:N | Only one `active` booking per bed (enforced in service layer) |
 | `residents` | `rent_payments` | 1:N | Rent ledger per resident |
 | `bookings` | `rent_payments` | 1:N | Optional link to a specific stay |
+
+## API status
+
+| Table | API routes |
+|-------|------------|
+| `tenants`, `users`, `tenant_users` | Via auth and `/me/context` |
+| `flats`, `rooms`, `beds`, `residents` | Full CRUD at `/api/v1/*` |
+| `bookings` | **Not implemented** — model only |
+| `rent_payments` | **Not implemented** — model only |
+| `refresh_tokens` | Internal — used by auth service |
 
 ## Indexes & Constraints
 
@@ -166,6 +203,7 @@ Tenant (PG Business)
   - `tenants.slug`
   - `users.email`
   - `tenant_users (tenant_id, user_id)`
+  - `refresh_tokens.token_hash`
   - `rooms (flat_id, room_number)`
   - `beds (room_id, bed_label)`
   - `residents (tenant_id, phone)`
@@ -184,7 +222,7 @@ Tenant (PG Business)
 | `Flat` | `Flat` | Property / building |
 | `RentPayment` | `Payment` | Monthly rent record |
 
-## Migration
+## Migrations
 
 Apply with:
 
@@ -192,5 +230,10 @@ Apply with:
 alembic upgrade head
 ```
 
-- `001_initial_tenant_user` — base `tenants` + `users`
-- `002_pg_domain_models` — `tenant_users` refactor + full domain schema
+| Migration | Description |
+|-----------|-------------|
+| `001_initial_tenant_user` | Base `tenants` + `users` |
+| `002_pg_domain_models` | `tenant_users` refactor + full domain schema |
+| `003_refresh_tokens` | `refresh_tokens` table for JWT refresh |
+| `004_tenant_branding` | Tenant logo, colors, `is_demo`, `subscription_status` |
+| `005_role_rename` | Rename `staff` → `manager`; add `super_admin` role value |

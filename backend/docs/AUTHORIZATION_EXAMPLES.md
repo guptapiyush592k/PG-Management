@@ -40,6 +40,67 @@ sequenceDiagram
 | `Authorization` | Yes | `Bearer <access_token>` |
 | `X-Tenant-ID` | Yes (protected routes) | UUID of the PG business tenant |
 
+## Roles and permissions (RBAC)
+
+Three roles exist in `tenant_users.role`:
+
+| Role | Value | Description |
+|------|-------|-------------|
+| Super Admin | `super_admin` | Full access within a tenant (assign manually in DB for now) |
+| Owner | `owner` | PG business owner — full access |
+| Manager | `manager` | Day-to-day staff — limited write access |
+
+Permission matrix:
+
+| Permission | Super Admin | Owner | Manager |
+|------------|:-----------:|:-----:|:-------:|
+| `manage_flats` | Yes | Yes | No |
+| `manage_rooms` | Yes | Yes | No |
+| `manage_beds` | Yes | Yes | Yes |
+| `manage_residents` | Yes | Yes | Yes |
+| `manage_payments` | Yes | Yes | Yes |
+
+Permissions are resolved in [`app/schemas/tenant_context.py`](../app/schemas/tenant_context.py) and enforced in the **service layer** via [`app/services/permissions.py`](../app/services/permissions.py).
+
+## GET /me/context
+
+Returns the current user, tenant branding, and permissions. No `X-Tenant-ID` header needed.
+
+```http
+GET /me/context
+Authorization: Bearer <access_token>
+```
+
+Example response:
+
+```json
+{
+  "user": {
+    "id": "uuid",
+    "name": "Owner Name",
+    "email": "owner@example.com"
+  },
+  "tenant": {
+    "id": "uuid",
+    "name": "Demo PG",
+    "logo_url": null,
+    "primary_color": "#2563EB",
+    "secondary_color": "#1E40AF",
+    "is_demo": true,
+    "subscription_status": "trial"
+  },
+  "permissions": {
+    "manage_flats": true,
+    "manage_rooms": true,
+    "manage_beds": true,
+    "manage_residents": true,
+    "manage_payments": true
+  }
+}
+```
+
+The frontend should use `permissions` to show or hide UI actions (create flat, edit room, etc.).
+
 ## Example: login then call protected API
 
 ```http
@@ -52,7 +113,22 @@ Content-Type: application/json
 }
 ```
 
-Response includes `access_token` and `tenant_id`.
+Response:
+
+```json
+{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "user": {
+    "id": "uuid",
+    "email": "owner@example.com",
+    "full_name": "Owner Name"
+  },
+  "tenant_id": "uuid"
+}
+```
 
 ```http
 GET /api/v1/examples/tenant-scope
@@ -69,6 +145,19 @@ X-Tenant-ID: <tenant_id>
   "tenant_name": "Demo PG"
 }
 ```
+
+## Service-layer permission enforcement
+
+Write operations check permissions inside services, not in routers:
+
+```python
+# app/services/flat_service.py
+async def create_flat(self, data: FlatCreate) -> FlatResponse:
+    require_permission(self.role, "manage_flats")
+    ...
+```
+
+If the user's role lacks permission, the service raises `ForbiddenError` (HTTP 403).
 
 ## FastAPI dependency injection
 
@@ -105,10 +194,11 @@ Available dependencies:
 | Missing `X-Tenant-ID` | 403 | `forbidden` |
 | User not in tenant | 403 | `forbidden` |
 | Inactive user / tenant | 403 | `forbidden` |
+| Insufficient role permission | 403 | `forbidden` |
 
 ```json
 {
-  "detail": "User does not have access to this tenant",
+  "detail": "Insufficient permissions to manage flats",
   "error_code": "forbidden"
 }
 ```
@@ -116,8 +206,9 @@ Available dependencies:
 ## Implementing a new protected route
 
 1. Add the route under `/api/v1/...` (not under `/auth`).
-2. Inject `CurrentUser` and `CurrentTenant` (or `AuthorizedContextDep`).
-3. Ensure clients send both `Authorization` and `X-Tenant-ID`.
-4. Use `tenant.id` for all tenant-scoped queries — never read tenant id from the body.
+2. Create or extend a service that calls `require_permission()` for write operations.
+3. Inject `AuthorizedContextDep` in the service factory to pass the user's role.
+4. Ensure clients send both `Authorization` and `X-Tenant-ID`.
+5. Use `tenant.id` for all tenant-scoped queries — never read tenant id from the body.
 
 Example route: [`app/api/v1/examples.py`](../app/api/v1/examples.py)

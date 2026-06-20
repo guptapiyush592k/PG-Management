@@ -8,6 +8,7 @@ import pytest
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.bed import Bed, BedStatus
 from app.models.room import Room
+from app.models.tenant_user import TenantUserRole
 from app.schemas.bed import BedCreate, BedListParams, BedUpdate
 from app.services.bed_service import BedService
 
@@ -57,6 +58,7 @@ def bed_service(tenant_id: uuid.UUID) -> BedService:
     return BedService(
         session,
         tenant_id,
+        TenantUserRole.OWNER,
         bed_repo=AsyncMock(),
         room_repo=AsyncMock(),
     )

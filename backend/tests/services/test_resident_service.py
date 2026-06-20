@@ -7,6 +7,7 @@ import pytest
 
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.resident import Resident
+from app.models.tenant_user import TenantUserRole
 from app.schemas.resident import ResidentCreate, ResidentListParams, ResidentUpdate
 from app.services.resident_service import ResidentService
 
@@ -39,7 +40,7 @@ def resident(tenant_id: uuid.UUID) -> Resident:
 def resident_service(tenant_id: uuid.UUID) -> ResidentService:
     session = AsyncMock()
     session.commit = AsyncMock()
-    return ResidentService(session, tenant_id, resident_repo=AsyncMock())
+    return ResidentService(session, tenant_id, TenantUserRole.OWNER, resident_repo=AsyncMock())
 
 
 @pytest.mark.asyncio

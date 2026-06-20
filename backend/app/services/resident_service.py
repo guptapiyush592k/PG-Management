@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.resident import Resident
+from app.models.tenant_user import TenantUserRole
 from app.repositories.resident_repository import ResidentRepository
 from app.schemas.common import PaginatedResponse
 from app.schemas.resident import (
@@ -12,6 +13,7 @@ from app.schemas.resident import (
     ResidentResponse,
     ResidentUpdate,
 )
+from app.services.permissions import require_permission
 
 
 class ResidentService:
@@ -19,14 +21,17 @@ class ResidentService:
         self,
         session: AsyncSession,
         tenant_id: UUID,
+        role: TenantUserRole,
         *,
         resident_repo: ResidentRepository | None = None,
     ) -> None:
         self.session = session
         self.tenant_id = tenant_id
+        self.role = role
         self.resident_repo = resident_repo or ResidentRepository(session, tenant_id)
 
     async def create_resident(self, data: ResidentCreate) -> ResidentResponse:
+        require_permission(self.role, "manage_residents")
         await self._ensure_unique_phone(data.phone)
 
         resident = await self.resident_repo.create(
@@ -72,6 +77,7 @@ class ResidentService:
         resident_id: UUID,
         data: ResidentUpdate,
     ) -> ResidentResponse:
+        require_permission(self.role, "manage_residents")
         resident = await self._get_resident_or_404(resident_id)
         await self._ensure_unique_phone(data.phone, exclude_id=resident_id)
 
@@ -90,6 +96,7 @@ class ResidentService:
         return self._to_response(updated)
 
     async def delete_resident(self, resident_id: UUID) -> None:
+        require_permission(self.role, "manage_residents")
         resident = await self._get_resident_or_404(resident_id)
         await self.resident_repo.delete(resident)
         await self.session.commit()

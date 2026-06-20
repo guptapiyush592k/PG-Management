@@ -7,6 +7,7 @@ import pytest
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.flat import Flat
 from app.models.room import Room
+from app.models.tenant_user import TenantUserRole
 from app.schemas.room import RoomCreate, RoomListParams, RoomUpdate
 from app.services.room_service import RoomService
 
@@ -55,6 +56,7 @@ def room_service(tenant_id: uuid.UUID) -> RoomService:
     return RoomService(
         session,
         tenant_id,
+        TenantUserRole.OWNER,
         room_repo=AsyncMock(),
         flat_repo=AsyncMock(),
     )

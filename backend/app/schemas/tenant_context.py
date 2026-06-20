@@ -34,7 +34,7 @@ class MeContextResponse(BaseModel):
 
 
 def resolve_permissions(role: TenantUserRole) -> PermissionsResponse:
-    if role == TenantUserRole.OWNER:
+    if role in (TenantUserRole.SUPER_ADMIN, TenantUserRole.OWNER):
         return PermissionsResponse(
             manage_flats=True,
             manage_rooms=True,

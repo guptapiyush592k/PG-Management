@@ -90,7 +90,7 @@ async def test_list_flats_route(
         id=uuid.uuid4(),
         tenant_id=uuid.UUID(flat_response.tenant_id),
         user_id=uuid.uuid4(),
-        role=TenantUserRole.STAFF,
+        role=TenantUserRole.MANAGER,
         is_primary=True,
     )
 
@@ -124,7 +124,7 @@ async def test_list_flats_route(
 
 
 @pytest.mark.asyncio
-async def test_create_flat_forbidden_for_staff(
+async def test_create_flat_forbidden_for_manager(
     client: AsyncClient,
     flat_response: FlatResponse,
 ) -> None:
@@ -132,7 +132,7 @@ async def test_create_flat_forbidden_for_staff(
         id=uuid.uuid4(),
         tenant_id=uuid.UUID(flat_response.tenant_id),
         user_id=uuid.uuid4(),
-        role=TenantUserRole.STAFF,
+        role=TenantUserRole.MANAGER,
         is_primary=True,
     )
 

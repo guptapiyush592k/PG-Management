@@ -95,7 +95,7 @@ async def test_list_rooms_route(
     with patch(
         "app.middleware.tenant_authorization.TenantAuthorizationService.authorize",
         new_callable=AsyncMock,
-        return_value=_authorized_context(tenant_id, TenantUserRole.STAFF),
+        return_value=_authorized_context(tenant_id, TenantUserRole.MANAGER),
     ):
         response = await client.get(
             f"/api/v1/rooms?flat_id={room_response.flat_id}",
@@ -110,7 +110,7 @@ async def test_list_rooms_route(
 
 
 @pytest.mark.asyncio
-async def test_create_room_forbidden_for_staff(
+async def test_create_room_forbidden_for_manager(
     client: AsyncClient,
     room_response: RoomResponse,
 ) -> None:
@@ -119,7 +119,7 @@ async def test_create_room_forbidden_for_staff(
     with patch(
         "app.middleware.tenant_authorization.TenantAuthorizationService.authorize",
         new_callable=AsyncMock,
-        return_value=_authorized_context(tenant_id, TenantUserRole.STAFF),
+        return_value=_authorized_context(tenant_id, TenantUserRole.MANAGER),
     ):
         response = await client.post(
             "/api/v1/rooms",

@@ -4,10 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.room import Room
+from app.models.tenant_user import TenantUserRole
 from app.repositories.flat_repository import FlatRepository
 from app.repositories.room_repository import RoomRepository
 from app.schemas.common import PaginatedResponse
 from app.schemas.room import RoomCreate, RoomListParams, RoomResponse, RoomUpdate
+from app.services.permissions import require_permission
 
 
 class RoomService:
@@ -15,16 +17,19 @@ class RoomService:
         self,
         session: AsyncSession,
         tenant_id: UUID,
+        role: TenantUserRole,
         *,
         room_repo: RoomRepository | None = None,
         flat_repo: FlatRepository | None = None,
     ) -> None:
         self.session = session
         self.tenant_id = tenant_id
+        self.role = role
         self.room_repo = room_repo or RoomRepository(session, tenant_id)
         self.flat_repo = flat_repo or FlatRepository(session, tenant_id)
 
     async def create_room(self, data: RoomCreate) -> RoomResponse:
+        require_permission(self.role, "manage_rooms")
         await self._ensure_flat_exists(data.flat_id)
         await self._ensure_unique_room_number(data.flat_id, data.room_number)
 
@@ -58,6 +63,7 @@ class RoomService:
         return self._to_response(room)
 
     async def update_room(self, room_id: UUID, data: RoomUpdate) -> RoomResponse:
+        require_permission(self.role, "manage_rooms")
         room = await self._get_room_or_404(room_id)
         await self._ensure_flat_exists(data.flat_id)
         await self._ensure_unique_room_number(
@@ -75,6 +81,7 @@ class RoomService:
         return self._to_response(updated)
 
     async def delete_room(self, room_id: UUID) -> None:
+        require_permission(self.role, "manage_rooms")
         room = await self._get_room_or_404(room_id)
         await self.room_repo.delete(room)
         await self.session.commit()

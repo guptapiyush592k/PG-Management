@@ -3,8 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import CurrentMembership, CurrentTenantId, DbSession
-from app.core.exceptions import ForbiddenError
+from app.api.deps import AuthorizedContextDep, DbSession
 from app.schemas.common import PaginatedResponse
 from app.schemas.resident import (
     ResidentCreate,
@@ -12,25 +11,16 @@ from app.schemas.resident import (
     ResidentResponse,
     ResidentUpdate,
 )
-from app.schemas.tenant_context import resolve_permissions
 from app.services.resident_service import ResidentService
 
 router = APIRouter(tags=["residents"])
 
 
-def get_resident_service(db: DbSession, tenant_id: CurrentTenantId) -> ResidentService:
-    return ResidentService(db, tenant_id)
+def get_resident_service(auth: AuthorizedContextDep, db: DbSession) -> ResidentService:
+    return ResidentService(db, auth.tenant_id, auth.membership.role)
 
 
 ResidentServiceDep = Annotated[ResidentService, Depends(get_resident_service)]
-
-
-async def require_manage_residents(membership: CurrentMembership) -> None:
-    if not resolve_permissions(membership.role).manage_residents:
-        raise ForbiddenError("Insufficient permissions to manage residents")
-
-
-ManageResidentsDep = Annotated[None, Depends(require_manage_residents)]
 
 
 def get_list_params(
@@ -53,7 +43,6 @@ ResidentListParamsDep = Annotated[ResidentListParams, Depends(get_list_params)]
 @router.post("", response_model=ResidentResponse, status_code=status.HTTP_201_CREATED)
 async def create_resident(
     data: ResidentCreate,
-    _permission: ManageResidentsDep,
     service: ResidentServiceDep,
 ) -> ResidentResponse:
     return await service.create_resident(data)
@@ -75,11 +64,10 @@ async def get_resident(
     return await service.get_resident(resident_id)
 
 
-@router.put("/{resident_id}", response_model=ResidentResponse)
+@router.patch("/{resident_id}", response_model=ResidentResponse)
 async def update_resident(
     resident_id: UUID,
     data: ResidentUpdate,
-    _permission: ManageResidentsDep,
     service: ResidentServiceDep,
 ) -> ResidentResponse:
     return await service.update_resident(resident_id, data)
@@ -88,7 +76,6 @@ async def update_resident(
 @router.delete("/{resident_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_resident(
     resident_id: UUID,
-    _permission: ManageResidentsDep,
     service: ResidentServiceDep,
 ) -> None:
     await service.delete_resident(resident_id)

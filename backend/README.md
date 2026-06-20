@@ -2,6 +2,8 @@
 
 Production-ready FastAPI backend for the PG Management SaaS platform.
 
+**Documentation:** See [`docs/README.md`](docs/README.md) for the full reference — architecture, auth, tenancy, API conventions, and database schema.
+
 ## Tech Stack
 
 - Python 3.12
@@ -10,7 +12,7 @@ Production-ready FastAPI backend for the PG Management SaaS platform.
 - SQLAlchemy 2.0 (async)
 - Alembic
 - Pydantic v2
-- JWT authentication infrastructure
+- JWT authentication (access + refresh tokens)
 - Multi-tenant architecture (shared schema with `tenant_id`)
 
 ## Prerequisites
@@ -25,7 +27,7 @@ Production-ready FastAPI backend for the PG Management SaaS platform.
 **Windows (PowerShell):**
 
 ```powershell
-cd "PG Management Backend"
+cd backend
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install --upgrade pip
@@ -35,7 +37,7 @@ pip install -r requirements.txt
 **macOS / Linux:**
 
 ```bash
-cd "PG Management Backend"
+cd backend
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
@@ -50,12 +52,16 @@ copy .env.example .env
 
 Edit `.env` and set all **required** variables:
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | Async PostgreSQL URL (`postgresql+asyncpg://...`) |
-| `JWT_SECRET_KEY` | Secret key for JWT signing (min 32 characters) |
-| `JWT_ALGORITHM` | JWT algorithm (`HS256`, `HS384`, or `HS512`) |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime in minutes |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | Async PostgreSQL URL (`postgresql+asyncpg://...`) |
+| `JWT_SECRET_KEY` | Yes | Secret key for JWT signing (min 32 characters) |
+| `JWT_ALGORITHM` | Yes | JWT algorithm (`HS256`, `HS384`, or `HS512`) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Yes | Access token lifetime in minutes |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | No | Refresh token lifetime (default `7`) |
+| `DEMO_TENANT_SLUG` | No | Demo tenant slug for signup (default `demo`) |
+| `CORS_ORIGINS` | No | Comma-separated allowed origins |
+| `LOG_LEVEL` | No | Logging level (default `INFO`) |
 
 Optional: `DATABASE_URL_SYNC` for Alembic (auto-derived from `DATABASE_URL` if omitted).
 
@@ -102,6 +108,22 @@ Example response:
 pytest
 ```
 
+## Implemented APIs
+
+| Group | Routes |
+|-------|--------|
+| Auth | `POST /auth/signup`, `/login`, `/refresh`, `/logout` |
+| Me | `GET /me/context` |
+| Health | `GET /api/v1/health` |
+| Flats | CRUD at `/api/v1/flats` |
+| Rooms | CRUD at `/api/v1/rooms` |
+| Beds | CRUD at `/api/v1/beds` |
+| Residents | CRUD at `/api/v1/residents` |
+
+See [docs/API_CONVENTIONS.md](docs/API_CONVENTIONS.md) for the full endpoint catalog.
+
+**Not yet implemented:** Bookings and rent payments (models exist, no API routes).
+
 ## Project Structure
 
 ```
@@ -109,13 +131,14 @@ app/
 ├── api/           # REST API routers
 ├── core/          # Config, security, exceptions, dependencies
 ├── db/            # Database engine and base models
-├── middleware/    # Request logging, tenant context
+├── middleware/    # Request logging, tenant authorization
 ├── models/        # SQLAlchemy ORM models
 ├── repositories/  # Data access layer
 ├── schemas/       # Pydantic request/response schemas
-├── services/      # Business logic (future)
+├── services/      # Business logic and permission checks
 └── utils/         # Shared utilities
 alembic/           # Database migrations
+docs/              # Documentation (source of truth)
 tests/             # Test suite
 ```
 
@@ -123,10 +146,10 @@ tests/             # Test suite
 
 This backend uses a **shared PostgreSQL schema** with row-level isolation via `tenant_id`.
 
-- JWT tokens include a `tenant_id` claim
-- `X-Tenant-ID` header is supported for local development
+- Protected routes require `Authorization: Bearer <token>` and `X-Tenant-ID` header
 - `BaseRepository` auto-filters tenant-scoped queries
 - New tenant-scoped records auto-receive `tenant_id` on flush
+- See [docs/TENANCY.md](docs/TENANCY.md) for details
 
 ## Alembic Commands
 
@@ -140,8 +163,3 @@ alembic upgrade head
 # Rollback one migration
 alembic downgrade -1
 ```
-
-## Notes
-
-- Auth routes (`/auth/login`, `/auth/register`) are not implemented yet — only JWT infrastructure is in place.
-- Business domain APIs (properties, residents, payments) will be added in future phases.

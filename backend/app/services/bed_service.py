@@ -4,10 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.bed import Bed
+from app.models.tenant_user import TenantUserRole
 from app.repositories.bed_repository import BedRepository
 from app.repositories.room_repository import RoomRepository
 from app.schemas.bed import BedCreate, BedListParams, BedResponse, BedUpdate
 from app.schemas.common import PaginatedResponse
+from app.services.permissions import require_permission
 
 
 class BedService:
@@ -15,16 +17,19 @@ class BedService:
         self,
         session: AsyncSession,
         tenant_id: UUID,
+        role: TenantUserRole,
         *,
         bed_repo: BedRepository | None = None,
         room_repo: RoomRepository | None = None,
     ) -> None:
         self.session = session
         self.tenant_id = tenant_id
+        self.role = role
         self.bed_repo = bed_repo or BedRepository(session, tenant_id)
         self.room_repo = room_repo or RoomRepository(session, tenant_id)
 
     async def create_bed(self, data: BedCreate) -> BedResponse:
+        require_permission(self.role, "manage_beds")
         await self._ensure_room_exists(data.room_id)
         await self._ensure_unique_bed_label(data.room_id, data.bed_label)
 
@@ -65,6 +70,7 @@ class BedService:
         return self._to_response(bed)
 
     async def update_bed(self, bed_id: UUID, data: BedUpdate) -> BedResponse:
+        require_permission(self.role, "manage_beds")
         bed = await self._get_bed_or_404(bed_id)
         await self._ensure_room_exists(data.room_id)
         await self._ensure_unique_bed_label(
@@ -84,6 +90,7 @@ class BedService:
         return self._to_response(updated)
 
     async def delete_bed(self, bed_id: UUID) -> None:
+        require_permission(self.role, "manage_beds")
         bed = await self._get_bed_or_404(bed_id)
         await self.bed_repo.delete(bed)
         await self.session.commit()

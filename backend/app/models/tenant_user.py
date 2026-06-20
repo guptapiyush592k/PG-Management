@@ -14,8 +14,9 @@ if TYPE_CHECKING:
 
 
 class TenantUserRole(str, enum.Enum):
+    SUPER_ADMIN = "super_admin"
     OWNER = "owner"
-    STAFF = "staff"
+    MANAGER = "manager"
 
 
 class TenantUser(Base, UUIDPrimaryKeyMixin, TimestampMixin):

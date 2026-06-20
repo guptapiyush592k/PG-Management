@@ -4,8 +4,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ForbiddenError, NotFoundError
 from app.models.flat import Flat
+from app.models.tenant_user import TenantUserRole
 from app.schemas.flat import FlatCreate, FlatListParams, FlatUpdate
 from app.services.flat_service import FlatService
 
@@ -33,7 +34,7 @@ def flat(tenant_id: uuid.UUID) -> Flat:
 def flat_service(tenant_id: uuid.UUID) -> FlatService:
     session = AsyncMock()
     session.commit = AsyncMock()
-    return FlatService(session, tenant_id, flat_repo=AsyncMock())
+    return FlatService(session, tenant_id, TenantUserRole.OWNER, flat_repo=AsyncMock())
 
 
 @pytest.mark.asyncio
@@ -97,6 +98,21 @@ async def test_update_flat(
 
     assert result.name == "Sunrise PG"
     flat_service.session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_create_flat_forbidden_for_manager(flat_service: FlatService) -> None:
+    manager_service = FlatService(
+        flat_service.session,
+        flat_service.tenant_id,
+        TenantUserRole.MANAGER,
+        flat_repo=flat_service.flat_repo,
+    )
+
+    with pytest.raises(ForbiddenError):
+        await manager_service.create_flat(
+            FlatCreate(name="Sunrise PG", address="123 Main Street")
+        )
 
 
 @pytest.mark.asyncio

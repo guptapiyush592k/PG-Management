@@ -71,7 +71,7 @@ async def test_create_resident_route(
     with patch(
         "app.middleware.tenant_authorization.TenantAuthorizationService.authorize",
         new_callable=AsyncMock,
-        return_value=_authorized_context(tenant_id, TenantUserRole.STAFF),
+        return_value=_authorized_context(tenant_id, TenantUserRole.MANAGER),
     ):
         response = await client.post(
             "/api/v1/residents",
@@ -115,7 +115,7 @@ async def test_list_residents_route(
     with patch(
         "app.middleware.tenant_authorization.TenantAuthorizationService.authorize",
         new_callable=AsyncMock,
-        return_value=_authorized_context(tenant_id, TenantUserRole.STAFF),
+        return_value=_authorized_context(tenant_id, TenantUserRole.MANAGER),
     ):
         response = await client.get(
             "/api/v1/residents?search=Rahul&is_active=true",

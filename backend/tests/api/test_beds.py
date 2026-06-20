@@ -66,7 +66,7 @@ async def test_create_bed_route(
     with patch(
         "app.middleware.tenant_authorization.TenantAuthorizationService.authorize",
         new_callable=AsyncMock,
-        return_value=_authorized_context(tenant_id, TenantUserRole.STAFF),
+        return_value=_authorized_context(tenant_id, TenantUserRole.MANAGER),
     ):
         response = await client.post(
             "/api/v1/beds",
@@ -104,7 +104,7 @@ async def test_list_beds_route(
     with patch(
         "app.middleware.tenant_authorization.TenantAuthorizationService.authorize",
         new_callable=AsyncMock,
-        return_value=_authorized_context(tenant_id, TenantUserRole.STAFF),
+        return_value=_authorized_context(tenant_id, TenantUserRole.MANAGER),
     ):
         response = await client.get(
             f"/api/v1/beds?room_id={bed_response.room_id}&status=vacant",
