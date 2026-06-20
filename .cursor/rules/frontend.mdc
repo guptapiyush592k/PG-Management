@@ -1,3 +1,5 @@
 ---
-alwaysApply: true
+description: Frontend development rules
+globs:
+  - "frontend/**"
 ---

@@ -1,6 +1,9 @@
 ---
-alwaysApply: true
+description: Backend development rules
+globs:
+  - "backend/**"
 ---
+
 # Backend Development Rules
 
 ## Tech Stack
