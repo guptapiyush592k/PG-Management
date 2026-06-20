@@ -8,6 +8,7 @@ PERMISSION_LABELS = {
     "manage_beds": "manage beds",
     "manage_residents": "manage residents",
     "manage_payments": "manage payments",
+    "manage_files": "manage files",
 }
 
 

@@ -62,6 +62,7 @@ Edit `.env` and set all **required** variables:
 | `DEMO_TENANT_SLUG` | No | Demo tenant slug for signup (default `demo`) |
 | `CORS_ORIGINS` | No | Comma-separated allowed origins |
 | `LOG_LEVEL` | No | Logging level (default `INFO`) |
+| `STORAGE_PROVIDER` | No | `local` (default) or `s3` — see [docs/STORAGE.md](docs/STORAGE.md) |
 
 Optional: `DATABASE_URL_SYNC` for Alembic (auto-derived from `DATABASE_URL` if omitted).
 
@@ -121,8 +122,9 @@ pytest
 | Residents | CRUD at `/api/v1/residents` |
 | Payments | Create, list, update, summary at `/api/v1/payments` |
 | Bookings | Create, list, checkout at `/api/v1/bookings` |
+| Files | Upload URL, list at `/api/v1/files` |
 
-See [docs/API_CONVENTIONS.md](docs/API_CONVENTIONS.md) for the full endpoint catalog.
+See [docs/API_CONVENTIONS.md](docs/API_CONVENTIONS.md) for the full endpoint catalog and [docs/STORAGE.md](docs/STORAGE.md) for file storage configuration.
 
 ## Project Structure
 
@@ -136,6 +138,7 @@ app/
 ├── repositories/  # Data access layer
 ├── schemas/       # Pydantic request/response schemas
 ├── services/      # Business logic and permission checks
+├── storage/       # Cloud-agnostic file storage providers
 └── utils/         # Shared utilities
 alembic/           # Database migrations
 docs/              # Documentation (source of truth)

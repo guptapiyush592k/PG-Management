@@ -14,6 +14,7 @@ from app.models import (  # noqa: F401
     RentPayment,
     Resident,
     Room,
+    StoredFile,
     Tenant,
     TenantUser,
     User,

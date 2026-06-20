@@ -12,6 +12,7 @@ This folder is the **single source of truth** for the PG Management backend. Rea
 | [TENANCY.md](TENANCY.md) | Multi-tenant isolation, `tenant_id`, repositories |
 | [DATABASE_ERD.md](DATABASE_ERD.md) | Tables, relationships, migrations |
 | [API_CONVENTIONS.md](API_CONVENTIONS.md) | REST patterns, pagination, errors, endpoint list |
+| [STORAGE.md](STORAGE.md) | File upload module, storage providers, configuration |
 
 ## Quick links
 

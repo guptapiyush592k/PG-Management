@@ -9,6 +9,7 @@ class PermissionsResponse(BaseModel):
     manage_beds: bool
     manage_residents: bool
     manage_payments: bool
+    manage_files: bool
 
 
 class UserContextResponse(BaseModel):
@@ -41,6 +42,7 @@ def resolve_permissions(role: TenantUserRole) -> PermissionsResponse:
             manage_beds=True,
             manage_residents=True,
             manage_payments=True,
+            manage_files=True,
         )
 
     return PermissionsResponse(
@@ -49,4 +51,5 @@ def resolve_permissions(role: TenantUserRole) -> PermissionsResponse:
         manage_beds=True,
         manage_residents=True,
         manage_payments=True,
+        manage_files=True,
     )

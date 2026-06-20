@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.flat import Flat
     from app.models.rent_payment import RentPayment
     from app.models.resident import Resident
+    from app.models.stored_file import StoredFile
     from app.models.tenant_user import TenantUser
 
 
@@ -63,6 +64,11 @@ class Tenant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     rent_payments: Mapped[list["RentPayment"]] = relationship(
         "RentPayment",
+        back_populates="tenant",
+        cascade="all, delete-orphan",
+    )
+    stored_files: Mapped[list["StoredFile"]] = relationship(
+        "StoredFile",
         back_populates="tenant",
         cascade="all, delete-orphan",
     )

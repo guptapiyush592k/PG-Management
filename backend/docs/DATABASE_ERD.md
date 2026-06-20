@@ -17,6 +17,9 @@ erDiagram
     tenants ||--o{ residents : manages
     tenants ||--o{ bookings : tracks
     tenants ||--o{ rent_payments : collects
+    tenants ||--o{ stored_files : stores
+
+    users ||--o{ stored_files : uploads
 
     flats ||--o{ rooms : contains
     rooms ||--o{ beds : contains
@@ -143,6 +146,19 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
     }
+
+    stored_files {
+        uuid id PK
+        uuid tenant_id FK
+        string filename
+        string content_type
+        string storage_key UK
+        integer size_bytes
+        enum status
+        uuid uploaded_by_user_id FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
 ```
 
 ## Domain Hierarchy
@@ -156,6 +172,7 @@ Tenant (PG Business)
 ├── Resident (occupant)
 │   ├── Booking → Bed
 │   └── RentPayment
+├── StoredFile (uploaded documents)
 └── Booking / RentPayment (tenant-scoped)
 ```
 
@@ -183,13 +200,15 @@ Tenant (PG Business)
 | `beds` | `bookings` | 1:N | Only one `active` booking per bed (enforced in service layer) |
 | `residents` | `rent_payments` | 1:N | Rent ledger per resident |
 | `bookings` | `rent_payments` | 1:N | Optional link to a specific stay |
+| `tenants` | `stored_files` | 1:N | Uploaded file metadata |
+| `users` | `stored_files` | 1:N | Optional uploader reference |
 
 ## API status
 
 | Table | API routes |
 |-------|------------|
 | `tenants`, `users`, `tenant_users` | Via auth and `/me/context` |
-| `flats`, `rooms`, `beds`, `residents`, `rent_payments`, `bookings` | API at `/api/v1/*` |
+| `flats`, `rooms`, `beds`, `residents`, `rent_payments`, `bookings`, `stored_files` | API at `/api/v1/*` |
 | `refresh_tokens` | Internal — used by auth service |
 
 ## Indexes & Constraints
@@ -235,3 +254,4 @@ alembic upgrade head
 | `003_refresh_tokens` | `refresh_tokens` table for JWT refresh |
 | `004_tenant_branding` | Tenant logo, colors, `is_demo`, `subscription_status` |
 | `005_role_rename` | Rename `staff` → `manager`; add `super_admin` role value |
+| `006_stored_files` | `stored_files` table for file upload metadata |

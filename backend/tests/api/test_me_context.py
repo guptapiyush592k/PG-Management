@@ -50,6 +50,7 @@ async def test_me_context_route_returns_context(
             manage_beds=True,
             manage_residents=True,
             manage_payments=True,
+            manage_files=True,
         ),
     )
 
@@ -101,6 +102,7 @@ async def test_me_context_ignores_client_tenant_header(
             manage_beds=True,
             manage_residents=True,
             manage_payments=True,
+            manage_files=True,
         ),
     )
 

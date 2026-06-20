@@ -59,6 +59,7 @@ Response shape:
 | Residents | `search`, `is_active` |
 | Payments | `search`, `resident_id`, `status` (`paid`, `pending`, `partial`, `overdue`) |
 | Bookings | `search`, `resident_id`, `bed_id`, `status` (`active`, `completed`, `cancelled`) |
+| Files | `search`, `status` (`pending`, `uploaded`) |
 
 ## Error responses
 
@@ -199,6 +200,39 @@ Checkout body (`end_date` optional, defaults to today):
 ```
 
 On create, the bed status is set to `occupied`. On checkout, the booking status becomes `completed` and the bed returns to `vacant`. Only one `active` booking is allowed per bed.
+
+### Files (protected)
+
+| Method | Path | Permission | Notes |
+|--------|------|------------|-------|
+| POST | `/api/v1/files/upload-url` | `manage_files` | Presigned upload URL (201) |
+| GET | `/api/v1/files` | — | List (paginated); filter by `status` |
+| PUT | `/api/v1/files/{file_id}/content` | — | Local storage only — upload bytes via signed URL |
+| GET | `/api/v1/files/{file_id}/content` | — | Local storage only — download via signed URL |
+
+Create upload URL body:
+
+```json
+{
+  "filename": "aadhaar.pdf",
+  "content_type": "application/pdf"
+}
+```
+
+Upload URL response:
+
+```json
+{
+  "file_id": "550e8400-e29b-41d4-a716-446655440000",
+  "upload_url": "https://...",
+  "method": "PUT",
+  "headers": { "Content-Type": "application/pdf" },
+  "storage_key": "tenant-uuid/file-uuid/aadhaar.pdf",
+  "expires_at": "2026-06-20T12:00:00Z"
+}
+```
+
+See [STORAGE.md](STORAGE.md) for provider configuration and upload flow.
 
 ### Examples (protected)
 

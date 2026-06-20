@@ -62,12 +62,14 @@ def test_owner_permissions_are_full() -> None:
     permissions = resolve_permissions(TenantUserRole.OWNER)
     assert permissions.manage_flats is True
     assert permissions.manage_payments is True
+    assert permissions.manage_files is True
 
 
 def test_super_admin_permissions_are_full() -> None:
     permissions = resolve_permissions(TenantUserRole.SUPER_ADMIN)
     assert permissions.manage_flats is True
     assert permissions.manage_payments is True
+    assert permissions.manage_files is True
 
 
 def test_manager_permissions_are_limited() -> None:
@@ -77,6 +79,7 @@ def test_manager_permissions_are_limited() -> None:
     assert permissions.manage_beds is True
     assert permissions.manage_residents is True
     assert permissions.manage_payments is True
+    assert permissions.manage_files is True
 
 
 @pytest.mark.asyncio

@@ -38,7 +38,8 @@ app/
 ├── models/         # SQLAlchemy ORM entities
 ├── repositories/   # Database queries only
 ├── schemas/        # Pydantic request/response models
-└── services/       # Business logic and permission checks
+├── services/       # Business logic and permission checks
+└── storage/        # Cloud-agnostic file storage providers
 alembic/            # Database migrations
 tests/              # pytest suite
 docs/               # This documentation

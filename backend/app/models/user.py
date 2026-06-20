@@ -7,6 +7,7 @@ from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.refresh_token import RefreshToken
+    from app.models.stored_file import StoredFile
     from app.models.tenant_user import TenantUser
 
 
@@ -29,4 +30,8 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         "RefreshToken",
         back_populates="user",
         cascade="all, delete-orphan",
+    )
+    uploaded_files: Mapped[list["StoredFile"]] = relationship(
+        "StoredFile",
+        back_populates="uploaded_by",
     )

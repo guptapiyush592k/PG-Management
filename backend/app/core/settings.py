@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Literal
 
 from dotenv import load_dotenv
-from pydantic import Field, ValidationError, field_validator
+from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()
@@ -39,6 +39,17 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     log_level: str = "INFO"
+
+    storage_provider: Literal["local", "s3"] = "local"
+    local_storage_path: str = "./uploads"
+    local_storage_public_base_url: str = "http://localhost:8000"
+    storage_presigned_url_expires_seconds: int = Field(default=3600, ge=60, le=86400)
+
+    s3_bucket_name: str | None = None
+    s3_region: str | None = None
+    s3_endpoint_url: str | None = None
+    s3_access_key_id: str | None = None
+    s3_secret_access_key: str | None = None
 
     @field_validator("database_url")
     @classmethod
@@ -85,6 +96,27 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @model_validator(mode="after")
+    def validate_storage_settings(self) -> "Settings":
+        if self.storage_provider != "s3":
+            return self
+
+        missing: list[str] = []
+        if not self.s3_bucket_name:
+            missing.append("S3_BUCKET_NAME")
+        if not self.s3_region:
+            missing.append("S3_REGION")
+        if not self.s3_access_key_id:
+            missing.append("S3_ACCESS_KEY_ID")
+        if not self.s3_secret_access_key:
+            missing.append("S3_SECRET_ACCESS_KEY")
+
+        if missing:
+            raise ValueError(
+                f"When STORAGE_PROVIDER=s3, the following are required: {', '.join(missing)}"
+            )
+        return self
 
 
 @lru_cache
