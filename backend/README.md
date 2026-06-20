@@ -119,10 +119,10 @@ pytest
 | Rooms | CRUD at `/api/v1/rooms` |
 | Beds | CRUD at `/api/v1/beds` |
 | Residents | CRUD at `/api/v1/residents` |
+| Payments | Create, list, update, summary at `/api/v1/payments` |
+| Bookings | Create, list, checkout at `/api/v1/bookings` |
 
 See [docs/API_CONVENTIONS.md](docs/API_CONVENTIONS.md) for the full endpoint catalog.
-
-**Not yet implemented:** Bookings (model exists, no API routes).
 
 ## Project Structure
 

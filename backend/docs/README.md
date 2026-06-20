@@ -30,5 +30,4 @@ This folder is the **single source of truth** for the PG Management backend. Rea
 
 ## What is not implemented yet
 
-- **Bookings API** — database model exists, no routes yet
 - **Platform-level Super Admin** — role exists in DB; assign manually until platform admin APIs are built

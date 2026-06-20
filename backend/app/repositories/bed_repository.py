@@ -105,3 +105,9 @@ class BedRepository(BaseRepository[Bed]):
         await self.session.flush()
         await self.session.refresh(bed)
         return bed
+
+    async def update_status(self, bed: Bed, status: BedStatus) -> Bed:
+        bed.status = status
+        await self.session.flush()
+        await self.session.refresh(bed)
+        return bed

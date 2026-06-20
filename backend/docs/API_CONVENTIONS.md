@@ -58,6 +58,7 @@ Response shape:
 | Beds | `search`, `room_id`, `status` (`vacant`, `occupied`, `maintenance`) |
 | Residents | `search`, `is_active` |
 | Payments | `search`, `resident_id`, `status` (`paid`, `pending`, `partial`, `overdue`) |
+| Bookings | `search`, `resident_id`, `bed_id`, `status` (`active`, `completed`, `cancelled`) |
 
 ## Error responses
 
@@ -171,17 +172,39 @@ Payment summary response:
 
 `pending_amount` includes both `pending` and `partial` statuses.
 
+### Bookings (protected)
+
+| Method | Path | Permission | Notes |
+|--------|------|------------|-------|
+| POST | `/api/v1/bookings` | `manage_beds` | Assign resident to a vacant bed |
+| GET | `/api/v1/bookings` | — | List (paginated); filter by `resident_id`, `bed_id`, `status` |
+| POST | `/api/v1/bookings/{booking_id}/checkout` | `manage_beds` | Complete stay and free the bed |
+
+Create booking body:
+
+```json
+{
+  "resident_id": "550e8400-e29b-41d4-a716-446655440000",
+  "bed_id": "660e8400-e29b-41d4-a716-446655440001",
+  "start_date": "2026-06-01"
+}
+```
+
+Checkout body (`end_date` optional, defaults to today):
+
+```json
+{
+  "end_date": "2026-06-30"
+}
+```
+
+On create, the bed status is set to `occupied`. On checkout, the booking status becomes `completed` and the bed returns to `vacant`. Only one `active` booking is allowed per bed.
+
 ### Examples (protected)
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/examples/tenant-scope` | Demo route showing tenant scoping |
-
-### Not implemented
-
-| Resource | Status |
-|----------|--------|
-| Bookings | Model + migration exist; no API routes |
 
 ## UUID identifiers
 
