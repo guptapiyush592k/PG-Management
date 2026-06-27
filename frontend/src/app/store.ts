@@ -1,5 +1,5 @@
 import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { ThemeMode } from '@/types';
+import type { ThemeMode } from '@/shared/types/api.types';
 
 interface UiState {
   sidebarCollapsed: boolean;
@@ -32,18 +32,20 @@ const uiSlice = createSlice({
     setTheme: (state, action: PayloadAction<ThemeMode>) => {
       state.theme = action.payload;
       localStorage.setItem('pg-theme', action.payload);
-      document.documentElement.classList.toggle('dark', action.payload === 'dark');
     },
   },
 });
 
-export const { toggleSidebar, setSidebarCollapsed, toggleMobileSidebar, setMobileSidebarOpen, setTheme } =
-  uiSlice.actions;
-
-import { pgDataReducer } from './slices/pgDataSlice';
+export const {
+  toggleSidebar,
+  setSidebarCollapsed,
+  toggleMobileSidebar,
+  setMobileSidebarOpen,
+  setTheme,
+} = uiSlice.actions;
 
 export const store = configureStore({
-  reducer: { ui: uiSlice.reducer, pgData: pgDataReducer },
+  reducer: { ui: uiSlice.reducer },
 });
 
 export type RootState = ReturnType<typeof store.getState>;

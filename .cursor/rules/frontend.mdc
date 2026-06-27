@@ -1,5 +1,279 @@
 ---
-description: Frontend development rules
+description: Frontend development rules (React + TypeScript + MUI architecture)
 globs:
   - "frontend/**"
 ---
+
+# FRONTEND ARCHITECTURE RULES (FINAL)
+
+## Tech Stack (Mandatory)
+
+- React
+- TypeScript
+- MUI (Material UI)
+- Redux Toolkit (UI state only)
+- TanStack Query (server state)
+- Axios (API layer)
+
+---
+
+# 1. STATE MANAGEMENT RULES
+
+## 1.1 Server State (Backend Data)
+
+- MUST use TanStack Query for all API data
+- NEVER store API responses in Redux
+- NEVER manually cache server data
+
+Examples:
+- user data
+- lists, tables
+- dashboard metrics
+- API-driven forms
+
+---
+
+## 1.2 Client/UI State (Redux)
+
+Use Redux ONLY for:
+- authentication UI state
+- modal open/close states
+- theme mode (if needed beyond MUI)
+- local UI filters (NOT backend-driven)
+
+Rules:
+- No async logic in slices
+- No API calls in Redux
+- Keep slices small and domain-based
+
+---
+
+## 1.3 Local State
+
+Use React local state (`useState`, `useReducer`) for:
+- form inputs
+- UI toggles
+- temporary component state
+
+---
+
+# 2. API LAYER RULES
+
+- All API calls MUST be inside `/services`
+- Services MUST be pure functions
+- No React, no hooks inside services
+
+Example:
+
+```ts
+export const getUser = () => axios.get("/user");
+```
+
+---
+
+# 3. REACT QUERY RULES
+
+- All API interactions MUST be wrapped in custom hooks
+- Components must NEVER call services directly
+
+Example hooks:
+- useUserQuery()
+- useCreateUserMutation()
+
+Rules:
+- Always use proper queryKey structure
+- Enable caching by default
+- Retry only for GET requests
+- Mutations must handle loading/error states explicitly
+
+---
+
+# 4. HOOK LAYER RULES
+
+Hooks are COMPOSITION layer only
+
+Combine:
+- API service
+- React Query
+- minimal UI logic
+
+Rules:
+- Hooks MUST NOT render UI
+- Hooks MUST NOT contain business logic unrelated to data flow
+
+---
+
+# 5. REDUX RULES
+
+- Use Redux Toolkit only
+- No API calls in slices
+- No side effects inside reducers
+- Keep slices minimal and domain-focused
+
+---
+
+# 6. CONTEXT API RULES (STRICT)
+
+Use Context ONLY for:
+- auth session (lightweight global user info)
+- theme or design mode
+- feature flags
+- dependency injection (services, config)
+
+DO NOT use Context for:
+- server state (use React Query)
+- frequently changing UI state
+- forms
+- tables, filters, pagination
+- large or complex data structures
+
+### Prop Drilling Rule
+- Prop drilling up to 2–3 levels is acceptable
+- Do NOT replace simple prop flow with Context
+
+### Performance Rule
+- Context updates re-render all consumers
+- Keep context small and stable
+- Split contexts by domain:
+  - AuthContext
+  - FeatureFlagContext
+  - ConfigContext
+
+---
+
+# 7. STYLING ARCHITECTURE
+
+## 7.1 Theme is the single source of design tokens
+
+Must include:
+- colors
+- typography
+- spacing
+- border radius
+- shadows
+- breakpoints
+- component overrides
+
+Rules:
+- NEVER hardcode colors
+- NEVER duplicate spacing logic
+
+Use:
+- theme.palette
+- theme.spacing
+- theme.typography
+
+---
+
+## 7.2 Styling Rules
+
+- Prefer `sx` over `style`
+- Avoid external CSS files
+- Avoid inline styles unless strictly dynamic
+- All reusable styling MUST come from theme or components
+
+---
+
+## 7.3 Component Wrappers (Lightweight Only)
+
+DO NOT replace MUI completely.
+Only create minimal reusable wrappers.
+
+---
+
+## 7.4 Base UI Components
+
+```tsx
+const BaseCard = ({ children, sx, ...props }) => {
+  return (
+    <Card
+      {...props}
+      sx={{
+        padding: 2,
+        borderRadius: 2,
+        boxShadow: 1,
+        backgroundColor: "background.paper",
+        ...sx,
+      }}
+    >
+      {children}
+    </Card>
+  );
+};
+```
+
+Rules:
+- Must stay generic
+- No business logic
+- No prop explosion
+
+---
+
+## 7.5 Extension Rule
+
+✔ DO:
+```tsx
+const StatsCard = (props) => (
+  <BaseCard sx={{ textAlign: "center" }} {...props} />
+);
+```
+
+❌ DO NOT:
+```tsx
+<BaseCard variant="compact" shadow="none" rounded="xl" dense />
+```
+
+---
+
+# 8. FOLDER STRUCTURE RULES
+
+/features
+  /auth
+  /user
+  /dashboard
+
+/shared
+  /components
+    /ui
+  /hooks
+  /utils
+  /constants
+
+/services
+
+---
+
+# 9. CONSTANTS RULES
+
+- No single global constants file
+- Must be domain-based:
+  - auth.constants.ts
+  - user.constants.ts
+
+---
+
+# 10. MUI USAGE RULES
+
+- Use MUI components as base
+- Customize via theme first
+- Wrap only when reuse is proven
+- Prefer composition over replacement
+
+---
+
+# 11. CODE QUALITY RULES
+
+- Components must focus on UI only
+- Business logic must live in hooks/services
+- No duplicate API logic
+- No styling duplication outside theme/components
+- Keep components small and composable
+
+---
+
+# 12. PERFORMANCE RULES
+
+- Use React Query caching instead of manual caching
+- Avoid unnecessary re-renders
+- Memoize only when needed
+- Do not over-optimize prematurely
