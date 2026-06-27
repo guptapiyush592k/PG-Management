@@ -69,7 +69,7 @@ Optional: `DATABASE_URL_SYNC` for Alembic (auto-derived from `DATABASE_URL` if o
 ### 3. Create database
 
 ```sql
-CREATE DATABASE pg_management;
+CREATE DATABASE PG_Management;
 ```
 
 ### 4. Run migrations
